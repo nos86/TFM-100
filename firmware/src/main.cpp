@@ -21,11 +21,11 @@
 #include <logger.h>
 
 //3rd parties lib
-#include <Adafruit_MAX31865.h>
 #include <mcp_can.h>
 
 //Project Headers
 #include "LEDs/LEDs.h"
+#include "PT100/PT100.h"
 
 
 /* Node Status */
@@ -45,8 +45,8 @@ uint8_t len;
 uint8_t rxBuf[8];
 
 // Temperature Sensors Variables
-Adafruit_MAX31865 supply_temperature = Adafruit_MAX31865(SUPPLY_CS);
-Adafruit_MAX31865 return_temperature = Adafruit_MAX31865(RETURN_CS);
+PT100 supply_sensor = PT100(SUPPLY_CS);
+PT100 return_sensor = PT100(RETURN_CS);
 
 // CAN TX Variables
 unsigned long prevTX = 0;                                       // Variable to store last execution time
@@ -85,10 +85,16 @@ void setup()
   pinMode(MCP_INT, INPUT); // Configuring pin for /INT input
 
   // Initialize the MAX31865
-  bool supply_init = supply_temperature.begin(MAX31865_2WIRE);
-  bool return_init = return_temperature.begin(MAX31865_2WIRE);
-  AddMessageToLog("MAX31865 - Supply Initialization", supply_init);
-  AddMessageToLog("MAX31865 - Return Initialization", return_init);
+  bool supply_init = supply_sensor.begin();
+  // Add some reading to understand if the micro is working
+  if (!AddMessageToLog("MAX31865 - Supply Initialization", supply_init)){
+    AddInfoToLog("Fault register: 0x" + String(supply_sensor.last_fault, HEX), true);
+  }
+  bool return_init = return_sensor.begin();
+  // Add some reading to understand if the micro is working
+  if (!AddMessageToLog("MAX31865 - Return Initialization", return_init)){
+    AddInfoToLog("Fault register: 0x" + String(return_sensor.last_fault, HEX), true);
+  }
   
   //Calculate value of HW failure
   HwFailure = !(mcp_init && supply_init && return_init);
@@ -100,7 +106,13 @@ void setup()
 
   if (HwFailure) return; // Do not continue in case of HW failure
 
-  // scheduler.addTask(loop_read_temperature, 1000);
+  // Trigger new reading every 1000ms
+  scheduler.addTask([](uint32_t td){ 
+      Serial.println("Triggering new reading...");
+      if(!supply_sensor.triggerMeasurement()) AddMessageToLog("Unable to read SUPPLY", false);
+      if(!return_sensor.triggerMeasurement()) AddMessageToLog("Unable to read RETURN", false);
+  }, 1000);
+
 
   node_status = RUN;
 }
@@ -108,14 +120,6 @@ void setup()
 
 
 
-void loop_read_temperature()
-{
-  unsigned long start_time = millis();
-  float supply_temperature_value = supply_temperature.temperature(100, 400);
-  float return_temperature_value = return_temperature.temperature(100, 400);
-  unsigned long end_time = millis();
-  printf("Supply Temperature: %.2f - Return Temperature: %.2f in %lu ms\n", (double)supply_temperature_value, (double)return_temperature_value, (end_time - start_time));
-}
 
 void loop_handle_canbus()
 {
@@ -173,4 +177,9 @@ void loop_handle_canbus()
 void loop()
 {
   scheduler.run();
+  supply_sensor.process();
+  return_sensor.process();
+  PT100Err = supply_sensor.errorDetected || return_sensor.errorDetected;
+  
+  
 }
