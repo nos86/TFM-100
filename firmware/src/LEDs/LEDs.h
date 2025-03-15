@@ -39,7 +39,7 @@ extern "C" {
 
 void LEDs_init(uint8_t redPin, uint8_t greenPin);
 void LEDs_process(uint32_t timeDifference_ms, NodeStatus_t state, bool ErrCANbusOff, 
-    bool ErrCANbusWarn, bool InvalidConfig, bool HwFailure);
+    bool ErrCANbusWarn, bool PT100Err, bool HwFailure);
 
 #ifdef __cplusplus
 }

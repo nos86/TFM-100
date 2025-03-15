@@ -32,7 +32,7 @@
 NodeStatus_t node_status = SETUP;
 bool CANbusOff = false;
 bool CANbusWarn = false;
-bool InvalidConfig = false;
+bool PT100Err = false;
 bool HwFailure = false;
 
 // Scheduler
@@ -95,7 +95,7 @@ void setup()
 
   // Initialize Scheduler
   scheduler.addTask([](uint32_t timeDifference_ms) {
-    LEDs_process(timeDifference_ms, node_status, CANbusOff, CANbusWarn, InvalidConfig, HwFailure);
+    LEDs_process(timeDifference_ms, node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
   }, 50);
 
   if (HwFailure) return; // Do not continue in case of HW failure

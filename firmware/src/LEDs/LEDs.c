@@ -5,7 +5,7 @@
  * ----------------------------------------------------------------------
  * | Off               | Init                | No Error                  |
  * | Flickering (10Hz) | Setup               | Hardware Failure          |
- * | Blinking (2.5Hz)  | -                   | Invalid configuration     |
+ * | Blinking (2.5Hz)  | -                   | PT100 Reading Error       |
  * | Single Flash      | Sleep               | CAN warning               |
  * | On                | RUN                 | CAN Bus Off               |
  * ----------------------------------------------------------------------
@@ -34,7 +34,7 @@ void LEDs_init(uint8_t redPin, uint8_t greenPin){
 }
  
 void LEDs_process(uint32_t timeDifference_ms, NodeStatus_t state, bool ErrCANbusOff, 
-bool ErrCANbusWarn, bool InvalidConfig, bool HwFailure){
+bool ErrCANbusWarn, bool PT100Err, bool HwFailure){
 uint8_t rd = 0;
 uint8_t gr = 0;
 bool tick = false;
@@ -122,7 +122,7 @@ bool tick = false;
             rd_co = rd & LED_flicker;
         } else if (ErrCANbusWarn) {
             rd_co = rd & LED_flash_1;
-        } else if (InvalidConfig) {
+        } else if (PT100Err) {
             rd_co = rd & LED_blink;
         } else {
             rd_co = 0;
