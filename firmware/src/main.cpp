@@ -26,7 +26,9 @@
 //Project Headers
 #include "LEDs/LEDs.h"
 #include "PT100/PT100.h"
+#include "J1939/j1939.h"
 #include "main.h"
+#include "status.h"
 
 /* Node Status */
 NodeStatus_t node_status = SETUP;
@@ -45,20 +47,24 @@ uint32_t rxId;
 uint8_t len;
 uint8_t rxBuf[8];
 
+// J1939 Variables
+J1939_HeartBeat CAN_heartbeat_msg = J1939_HeartBeat();
+
 // Temperature Sensors Variables
 PT100 supply_sensor = PT100(SUPPLY_CS);
 PT100 return_sensor = PT100(RETURN_CS);
 
-// CAN TX Variables
-unsigned long prevTX = 0;                                       // Variable to store last execution time
-const unsigned int invlTX = 1000;                               // One second interval constant
-byte data[] = {0xAA, 0x55, 0x01, 0x10, 0xFF, 0x12, 0x34, 0x56}; // Generic CAN data to send
-//
+/* Send messages on CAN each second */
+void loop_CanMessageEachSecond(uint32_t td){
+  uint8_t data[8];
+  uint8_t length;
+  // Send HeartBeat
+  CAN_heartbeat_msg.getData(data, &length);
+  if (CAN0.sendMsgBuf(CAN_heartbeat_msg.messageId, length, data) != CAN_OK)
+    AddMessageToLog("Unable to send heartbeat", false);
+  
 
-// Serial Output String Buffer
-char msgString[128];
-
-
+}
 
 
 void setup()
@@ -110,6 +116,9 @@ void setup()
   //Calculate value of HW failure
   HwFailure = !(mcp_init && supply_init && return_init);
 
+  // Initialize J1939
+  CAN_heartbeat_msg.begin(node_id, &node_status);
+
   // Initialize Scheduler
   scheduler.addTask([](uint32_t timeDifference_ms) {
     LEDs_process(timeDifference_ms, node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
@@ -128,7 +137,8 @@ void setup()
       if(!return_sensor.triggerMeasurement()) AddMessageToLog("Unable to read RETURN", false);
   }, 1000);
 
-
+  // Send data every 1000ms
+  scheduler.addTask(loop_CanMessageEachSecond, 1000);
   node_status = RUN;
 }
 
