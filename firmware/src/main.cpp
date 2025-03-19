@@ -26,10 +26,11 @@
 //Project Headers
 #include "LEDs/LEDs.h"
 #include "PT100/PT100.h"
-
+#include "main.h"
 
 /* Node Status */
 NodeStatus_t node_status = SETUP;
+uint8_t node_id;
 bool CANbusOff = false;
 bool CANbusWarn = false;
 bool PT100Err = false;
@@ -72,11 +73,20 @@ void setup()
   //   // Wait for the USB to be configured
   //   delay(10000);
   // }
-
   
 
   /* Configure microcontroller. */
   AddInfoToLog("Configuring microcontroller...");
+  pinMode(DS_B0, INPUT_PULLUP);
+  pinMode(DS_B1, INPUT_PULLUP);
+  pinMode(DS_B2, INPUT_PULLUP);
+  pinMode(DS_B3, INPUT_PULLUP);
+
+  // Read node address for dip-switch
+  node_id = dip_switch_read() | NODE_ID_BASE;
+  AddInfoToLog("Node ID: " + String(node_id));
+
+  // Initialize CAN-Bus
   bool mcp_init = (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK);
   if (AddMessageToLog("MCP25625 Initialization", mcp_init)){
     mcp_init = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK);
