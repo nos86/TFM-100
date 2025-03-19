@@ -28,3 +28,14 @@ class J1939_HeartBeat : public J1939 {
     private: 
         NodeStatus_t *state;
 };
+
+class J1939_Temperature : public J1939 {
+    public:
+        void begin(uint8_t src, float *supply_temp, float *return_temp);
+        void getData(uint8_t *data, uint8_t *length);
+
+    private:
+        float *supply_temp;
+        float *return_temp;
+};
+
