@@ -114,7 +114,11 @@ void setup()
     LEDs_process(timeDifference_ms, node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
   }, 50);
 
-  if (HwFailure) return; // Do not continue in case of HW failure
+  if (HwFailure) // Do not continue in case of HW failure
+  {
+    node_status = STOP;
+    return;
+  }
 
   // Trigger new reading every 1000ms
   scheduler.addTask([](uint32_t td){ 
