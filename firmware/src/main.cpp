@@ -92,7 +92,8 @@ void setup()
     mcp_init = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK);
     AddMessageToLog("Set to Normal Mode", mcp_init, true);
   }
-  pinMode(MCP_INT, INPUT); // Configuring pin for /INT input
+  // Configuring pin for /INT input
+  pinMode(MCP_INT, INPUT_PULLUP); 
 
   // Initialize the MAX31865
   bool supply_init = supply_sensor.begin();
