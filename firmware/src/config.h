@@ -19,4 +19,7 @@
 #define VARIANT VARIANT_FULL // Default variant
 #define FIRMWARE_VERSION 0xFF //Test
 
+#define PT100_FILTER_RC  5000 // 5s
+#define PT100_SAMPLE_RATE 100 // 100ms
+#define PT100_ALPHA ((float)PT100_SAMPLE_RATE / ((float)PT100_FILTER_RC + PT100_SAMPLE_RATE))
 #endif // CONFIG_H

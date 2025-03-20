@@ -108,12 +108,12 @@ void setup()
   pinMode(MCP_INT, INPUT_PULLUP); 
 
   // Initialize the MAX31865
-  bool supply_init = supply_sensor.begin();
+  bool supply_init = supply_sensor.begin((float)PT100_ALPHA);
   // Add some reading to understand if the micro is working
   if (!AddMessageToLog("MAX31865 - Supply Initialization", supply_init)){
     AddInfoToLog("Fault register: 0x" + String(supply_sensor.last_fault, HEX), true);
   }
-  bool return_init = return_sensor.begin();
+  bool return_init = return_sensor.begin((float)PT100_ALPHA);
   // Add some reading to understand if the micro is working
   if (!AddMessageToLog("MAX31865 - Return Initialization", return_init)){
     AddInfoToLog("Fault register: 0x" + String(return_sensor.last_fault, HEX), true);
@@ -139,10 +139,9 @@ void setup()
 
   // Trigger new reading every 1000ms
   scheduler.addTask([](uint32_t td){ 
-      Serial.println("Triggering new reading...");
       if(!supply_sensor.triggerMeasurement()) AddMessageToLog("Unable to read SUPPLY", false);
       if(!return_sensor.triggerMeasurement()) AddMessageToLog("Unable to read RETURN", false);
-  }, 1000);
+  }, PT100_SAMPLE_RATE);
 
   // Send data every 1000ms
   scheduler.addTask(loop_CanMessageEachSecond, 1000);
