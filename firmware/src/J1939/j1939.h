@@ -21,6 +21,19 @@ class J1939 {
 };
 
 class J1939_HeartBeat : public J1939 {
+    /*
+     * CAN Matrix for J1939_HeartBeat:
+     * +-----------+--------+-------------------+-------------------------+---------------+
+     * | Start bit | Length | Name              | Description             |   Byte Order  |
+     * +-----------+--------+-------------------+-------------------------+---------------+
+     * | 0         | 8 bits | Model             | 0x00 (TFM-100)          | Little Endian |
+     * | 8         | 8 bits | Version           | Version of the firmware | Little Endian |
+     * | 16        | 4 bits | Variant           | Variant of the firmware | Little Endian |
+     * | 20        | 4 bits | State             | State of the node       | Little Endian |
+     * | 24        | 8 bits | Reserved          | Unused                  | Little Endian |
+     * | 32        | 32 bits| Uptime            | Uptime of the node      | Little Endian |
+     * +-----------+--------+-------------------+-------------------------+---------------+
+     */
     public:
         void begin(uint8_t src, NodeStatus_t *state);
         void getData(uint8_t *data, uint8_t *length);

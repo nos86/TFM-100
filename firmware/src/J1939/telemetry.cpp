@@ -2,35 +2,53 @@
 #include "main.h"
 #include "config.h"
 
+#ifndef FIRMWARE_VERSION
+#warning "FIRMWARE_VERSION not defined"
+#endif
+
+#ifndef MODEL
+#warning "MODEL not defined"
+#endif
+
+#ifndef VARIANT
+#warning "VARIANT not defined"
+#endif
+
 void J1939_HeartBeat::begin(uint8_t src, NodeStatus_t *state){
     this->state = state;
     J1939::begin(6, 0xFF10, src);
 }
 
 void J1939_HeartBeat::getData(uint8_t *data, uint8_t *length){
-    *length = 6;
-    uint16_t version = (FIRMWARE_VERSION & 0x7FF) << 4;
+    if (state == nullptr || (data == nullptr) || (length == nullptr)){
+        return; // Exit the function if state is null
+    }
+    *length = 8;
+    data[0] = (uint8_t)(MODEL & 0xFF);
+    data[1] = (uint8_t)(FIRMWARE_VERSION & 0xFF);
+    data[2] = (uint8_t)((VARIANT & 0x0F) << 4);
     switch (*state){
         case STOP:
-            version |= 0x00;
+        data[2] |= 0x00;
             break;
         case SETUP:
-            version |= 0x01;
+        data[2] |= 0x01;
             break;
         case SLEEP:
-            version |= 0x02;
+        data[2] |= 0x02;
             break;
         case RUN:
-            version |= 0x0F;
-            break;        
+        data[2] |= 0x0F;
     }
-    data[0] = (version >> 8) & 0xFF;
-    data[1] = version & 0xFF;
+    // Reserved byte, currently set to 0x00 as per protocol specification or unused.
+    data[3] = 0x00;
+    // Calculate uptime using millis(). The millis() function overflows every ~49.7 days (2^32 ms).
+    // Modular arithmetic ensures that the calculation remains correct even after overflow.
     uint32_t uptime = millis(); 
-    data[2] = (uptime >> 24) & 0xFF;
-    data[3] = (uptime >> 16) & 0xFF;
-    data[4] = (uptime >> 8) & 0xFF;
-    data[5] = uptime & 0xFF;
+    data[7] = (uptime >> 24) & 0xFF;
+    data[6] = (uptime >> 16) & 0xFF;
+    data[5] = (uptime >> 8) & 0xFF;
+    data[4] = uptime & 0xFF;
 };
 
 void J1939_Temperature::begin(uint8_t src, float *supply_temp, float *return_temp){
