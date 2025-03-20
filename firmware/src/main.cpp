@@ -37,7 +37,7 @@ uint8_t node_id;
 bool CANbusOff = false;
 bool CANbusWarn = false;
 bool PT100Err = false;
-bool HwFailure = false;
+bool HwFailure = true;
 
 // Scheduler
 Scheduler scheduler = Scheduler();
@@ -83,9 +83,13 @@ void loop_CanMessageEachSecond(uint32_t td){
 }
 
 
-void setup()
-{
+void setup(){
   LEDs_init(LED_RED, LED_GREEN);
+
+  // Initialize Scheduler
+  scheduler.addTask([](uint32_t timeDifference_ms) {
+    LEDs_process(timeDifference_ms, node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
+  }, 50);
 
   // Initialize Serial Monitor
   Serial.begin(115200); // This pipes to the serial monitor
@@ -97,6 +101,7 @@ void setup()
   // }
   
 
+  while(HwFailure){
   /* Configure microcontroller. */
   AddInfoToLog("Configuring microcontroller...");
   pinMode(DS_B0, INPUT_PULLUP);
@@ -136,22 +141,21 @@ void setup()
   
   //Calculate value of HW failure
   HwFailure = !(mcp_init && supply_init && return_init);
+    if (HwFailure){
+      AddMessageToLog("HW Failure detected", true);
+      node_status = STOP;
+      uint32_t start_time = millis();
+      while(millis()-start_time < 20000){
+        scheduler.run();
+      }
+      Serial.println("Restarting...");
+    }
+  }
 
   // Initialize J1939
   CAN_heartbeat_msg.begin(node_id, &node_status, []() { return scheduler.getUptime(); });
   CAN_Temp_msg.begin(node_id, &(supply_sensor.last_temperature), &(return_sensor.last_temperature));
   CAN_TempAndFlow.begin(node_id, &(supply_sensor.average_temperature), &(return_sensor.average_temperature), &flow);
-
-  // Initialize Scheduler
-  scheduler.addTask([](uint32_t timeDifference_ms) {
-    LEDs_process(timeDifference_ms, node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
-  }, 50);
-
-  if (HwFailure) // Do not continue in case of HW failure
-  {
-    node_status = STOP;
-    return;
-  }
 
   // Trigger new reading every 1000ms
   scheduler.addTask([](uint32_t td){ 
