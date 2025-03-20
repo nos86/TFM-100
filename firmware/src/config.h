@@ -11,8 +11,8 @@
 #define MCP_INT 7   // PIN1  - D7
 
 
-#define VARIANT_FULL 0x00 // Default variant
-#define VARIANT_SIMULATED_FLOW 0x01 // Simulated flow variant
+#define VARIANT_FULL 0x01 // Default variant
+#define VARIANT_SIMULATED_FLOW 0x02 // Simulated flow variant
 
 
 #define MODEL 0x01 // TFM-100
