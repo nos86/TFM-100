@@ -52,3 +52,4 @@ class J1939_Temperature : public J1939 {
         float *return_temp;
 };
 
+#endif // J1939_H
