@@ -1,5 +1,6 @@
 #include "j1939.h"
 #include "main.h"
+#include "config.h"
 
 void J1939_HeartBeat::begin(uint8_t src, NodeStatus_t *state){
     this->state = state;

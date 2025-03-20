@@ -10,4 +10,13 @@
 #define MCP_CS 4    // PIN25 - D4/A6
 #define MCP_INT 7   // PIN1  - D7
 
+
+#define VARIANT_FULL 0x00 // Default variant
+#define VARIANT_SIMULATED_FLOW 0x01 // Simulated flow variant
+
+
+#define MODEL 0x01 // TFM-100
+#define VARIANT VARIANT_FULL // Default variant
+#define FIRMWARE_VERSION 0xFF //Test
+
 #endif // CONFIG_H
