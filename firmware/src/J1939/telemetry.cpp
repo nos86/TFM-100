@@ -14,8 +14,9 @@
 #warning "VARIANT not defined"
 #endif
 
-void J1939_HeartBeat::begin(uint8_t src, NodeStatus_t *state){
+void J1939_HeartBeat::begin(uint8_t src, NodeStatus_t *state, uint32_t (*getUptime)(void)){
     this->state = state;
+    this->uptime_fnct = getUptime;
     J1939::begin(6, 0xFF10, src);
 }
 
@@ -42,9 +43,7 @@ void J1939_HeartBeat::getData(uint8_t *data, uint8_t *length){
     }
     // Reserved byte, currently set to 0x00 as per protocol specification or unused.
     data[3] = 0x00;
-    // Calculate uptime using millis(). The millis() function overflows every ~49.7 days (2^32 ms).
-    // Modular arithmetic ensures that the calculation remains correct even after overflow.
-    uint32_t uptime = millis(); 
+    uint32_t uptime = this->uptime_fnct(); 
     data[7] = (uptime >> 24) & 0xFF;
     data[6] = (uptime >> 16) & 0xFF;
     data[5] = (uptime >> 8) & 0xFF;

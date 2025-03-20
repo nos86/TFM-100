@@ -123,7 +123,7 @@ void setup()
   HwFailure = !(mcp_init && supply_init && return_init);
 
   // Initialize J1939
-  CAN_heartbeat_msg.begin(node_id, &node_status);
+  CAN_heartbeat_msg.begin(node_id, &node_status, []() { return scheduler.getUptime(); });
   CAN_Temp_msg.begin(node_id, &(supply_sensor.last_temperature), &(return_sensor.last_temperature));
 
   // Initialize Scheduler

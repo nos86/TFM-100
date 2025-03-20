@@ -35,11 +35,12 @@ class J1939_HeartBeat : public J1939 {
      * +-----------+--------+-------------------+-------------------------+---------------+
      */
     public:
-        void begin(uint8_t src, NodeStatus_t *state);
+        void begin(uint8_t src, NodeStatus_t *state, uint32_t (*getUptime)(void));
         void getData(uint8_t *data, uint8_t *length);
 
     private: 
         NodeStatus_t *state;
+        uint32_t (*uptime_fnct)(void);
 };
 
 class J1939_Temperature : public J1939 {
