@@ -60,9 +60,9 @@ void J1939_Temperature::getData(uint8_t *data, uint8_t *length){
     *length = 4;
     uint16_t supply_temp = (uint16_t)((*this->supply_temp) * 100);
     uint16_t return_temp = (uint16_t)((*this->return_temp) * 100);
-    data[0] = (supply_temp >> 8) & 0xFF;
-    data[1] = supply_temp & 0xFF;
-    data[2] = (return_temp >> 8) & 0xFF;
-    data[3] = return_temp & 0xFF;
+    data[0] = supply_temp & 0xFF;
+    data[1] = (supply_temp >> 8) & 0xFF;
+    data[2] = return_temp & 0xFF;
+    data[3] = (return_temp >> 8) & 0xFF;
 };
 
