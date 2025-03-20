@@ -27,6 +27,7 @@
 #include "LEDs/LEDs.h"
 #include "PT100/PT100.h"
 #include "J1939/j1939.h"
+#include "flow/flow.h"
 #include "main.h"
 #include "status.h"
 
@@ -57,6 +58,7 @@ PT100 supply_sensor = PT100(SUPPLY_CS);
 PT100 return_sensor = PT100(RETURN_CS);
 
 // Flow Sensor Variables
+Flow flowObj = Flow(FLOW_TICKS_PER_LITER); 
 float flow = 0.0;
 
 /* Send messages on CAN each second */
@@ -126,6 +128,11 @@ void setup()
   if (!AddMessageToLog("MAX31865 - Return Initialization", return_init)){
     AddInfoToLog("Fault register: 0x" + String(return_sensor.last_fault, HEX), true);
   }
+
+  // Initialize Flow Sensor
+  flowObj.begin([](float flow){
+    Serial.println("Flow: " + String(flow, 2) + "l/h");
+  });
   
   //Calculate value of HW failure
   HwFailure = !(mcp_init && supply_init && return_init);
@@ -162,6 +169,7 @@ void loop()
   scheduler.run();
   supply_sensor.process();
   return_sensor.process();
+  flowObj.process();
   PT100Err = supply_sensor.errorDetected || return_sensor.errorDetected;
   
   

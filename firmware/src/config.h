@@ -10,6 +10,10 @@
 #define MCP_CS 4    // PIN25 - D4/A6
 #define MCP_INT 7   // PIN1  - D7
 
+//Flow Sensor Pins
+#define FLOW_SENSOR_PIN 0 // RX - D0
+#define FLOW_TICKS_PER_LITER 4
+
 
 #define VARIANT_FULL 0x01 // Default variant
 #define VARIANT_SIMULATED_FLOW 0x02 // Simulated flow variant
