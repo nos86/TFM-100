@@ -53,4 +53,13 @@ class J1939_Temperature : public J1939 {
         float *return_temp;
 };
 
+class J1939_FilteredTemperatureAndFlow : public J1939_Temperature {
+    public:
+        void begin(uint8_t src, float *supply_temp, float *return_temp, float *flow);
+        void getData(uint8_t *data, uint8_t *length);
+
+    private:
+        float *flow;
+};
+
 #endif // J1939_H

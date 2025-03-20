@@ -66,3 +66,16 @@ void J1939_Temperature::getData(uint8_t *data, uint8_t *length){
     data[3] = (return_temp >> 8) & 0xFF;
 };
 
+void J1939_FilteredTemperatureAndFlow::begin(uint8_t src, float *supply_temp, float *return_temp, float *flow){
+    this->flow = flow;
+    J1939_Temperature::begin(src, supply_temp, return_temp);
+    J1939::begin(6, 0xFF12, src);
+};
+
+void J1939_FilteredTemperatureAndFlow::getData(uint8_t *data, uint8_t *length){
+    J1939_Temperature::getData(data, length);
+    *length = 6;
+    uint16_t flow = (uint16_t)((*this->flow) * 100);
+    data[4] = flow & 0xFF;
+    data[5] = (flow >> 8) & 0xFF;
+};

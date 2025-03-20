@@ -50,10 +50,14 @@ uint8_t rxBuf[8];
 // J1939 Variables
 J1939_HeartBeat CAN_heartbeat_msg = J1939_HeartBeat();
 J1939_Temperature CAN_Temp_msg = J1939_Temperature();
+J1939_FilteredTemperatureAndFlow CAN_TempAndFlow = J1939_FilteredTemperatureAndFlow();
 
 // Temperature Sensors Variables
 PT100 supply_sensor = PT100(SUPPLY_CS);
 PT100 return_sensor = PT100(RETURN_CS);
+
+// Flow Sensor Variables
+float flow = 0.0;
 
 /* Send messages on CAN each second */
 void loop_CanMessageEachSecond(uint32_t td){
@@ -69,6 +73,10 @@ void loop_CanMessageEachSecond(uint32_t td){
   if (CAN0.sendMsgBuf(CAN_Temp_msg.messageId, length, data) != CAN_OK)
     AddMessageToLog("Unable to send temperature", false);
   
+  // Send Temperature and Flow
+  CAN_TempAndFlow.getData(data, &length);
+  if (CAN0.sendMsgBuf(CAN_TempAndFlow.messageId, length, data) != CAN_OK)
+    AddMessageToLog("Unable to send temperature and flow", false);  
 
 }
 
@@ -125,6 +133,7 @@ void setup()
   // Initialize J1939
   CAN_heartbeat_msg.begin(node_id, &node_status, []() { return scheduler.getUptime(); });
   CAN_Temp_msg.begin(node_id, &(supply_sensor.last_temperature), &(return_sensor.last_temperature));
+  CAN_TempAndFlow.begin(node_id, &(supply_sensor.average_temperature), &(return_sensor.average_temperature), &flow);
 
   // Initialize Scheduler
   scheduler.addTask([](uint32_t timeDifference_ms) {
