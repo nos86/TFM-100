@@ -19,9 +19,13 @@ class Scheduler {
         Scheduler() : numTasks(0) {}
         void addTask(void (*taskFunc)(uint32_t), uint32_t period);
         void run();
+        uint32_t getUptime() { return (uint32_t)(systemTime / 1000); }
+
     private:
         Task tasks[NUM_TASKS];
         uint8_t numTasks;
+        uint64_t systemTime;
+        uint32_t last_millis;
 };
 
 #endif
