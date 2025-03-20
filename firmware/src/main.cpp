@@ -157,63 +157,6 @@ void setup()
   node_status = RUN;
 }
 
-
-
-
-
-void loop_handle_canbus()
-{
-    // if(!digitalRead(MCP_INT))                          // If CAN0_INT pin is low, read receive buffer
-  // {
-  //   CAN0.readMsgBuf(&rxId, &len, rxBuf);              // Read data: len = data length, buf = data byte(s)
-
-  //   if((rxId & 0x80000000) == 0x80000000)             // Determine if ID is standard (11 bits) or extended (29 bits)
-  //     sprintf(msgString, "Extended ID: 0x%.8lX  DLC: %1d  Data:", (rxId & 0x1FFFFFFF), len);
-  //   else
-  //     sprintf(msgString, "Standard ID: 0x%.3lX       DLC: %1d  Data:", rxId, len);
-
-  //   Serial.print(msgString);
-
-  //   if((rxId & 0x40000000) == 0x40000000){            // Determine if message is a remote request frame.
-  //     sprintf(msgString, " REMOTE REQUEST FRAME");
-  //     Serial.print(msgString);
-  //   } else {
-  //     for(byte i = 0; i<len; i++){
-  //       sprintf(msgString, " 0x%.2X", rxBuf[i]);
-  //       Serial.print(msgString);
-  //     }
-  //   }
-
-  //   Serial.println();
-  // }
-
-  // if(millis() - prevTX >= invlTX){                    // Send this at a one second interval.
-  //   prevTX = millis();
-  //   byte sndStat = CAN0.sendMsgBuf(0x100, 8, data);
-
-  //   if(sndStat == CAN_OK)
-  //     Serial.println("Message Sent Successfully!");
-  //   else
-  //     Serial.println("Error Sending Message...");
-
-  // }
-
-  // byte sndStat = CAN0.sendMsgBuf(0x100, 0, 8, data);
-  // if(sndStat == CAN_OK){
-  //   Serial.println("Message Sent Successfully!");
-  //   TXLED1; //TX LED is not tied to a normally controlled pin so a macro is needed, turn LED ON
-  // } else {
-  //   Serial.println("Error Sending Message...");
-  // }
-  //   digitalWrite(LED_RED, LOW);   // set the RX LED ON
-  // digitalWrite(4, LOW);
-
-  // digitalWrite(LED_RED, HIGH);    // set the RX LED OFF
-  // // digitalWrite(4, HIGH);
-  // // TXLED0; //TX LED macro to turn LED OFF
-  // delay(200);              // wait for a second
-}
-
 void loop()
 {
   scheduler.run();
