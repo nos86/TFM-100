@@ -16,7 +16,7 @@ typedef struct {
 
 class Scheduler {
     public:
-        Scheduler() : numTasks(0) {}
+        Scheduler() : numTasks(0), systemTime(0), last_millis(0) {}
         void addTask(void (*taskFunc)(uint32_t), uint32_t period);
         void run();
         uint32_t getUptime() { return (uint32_t)(systemTime / 1000); }
