@@ -17,7 +17,7 @@ void flow_ISR(){
     // Handle the state transitions for the capture process based on the current step.
     uint16_t tick = TCNT1;
     uint16_t delta_tick = tick - last_tick;
-    if (delta_tick < 0) delta_tick += 65536;
+    if (delta_tick < 0) delta_tick += UINT16_MAX;
     if (delta_tick< (uint16_t)DEBOUNCE_TICK) return;  // Debounce
     last_tick = tick;
     switch (step){
