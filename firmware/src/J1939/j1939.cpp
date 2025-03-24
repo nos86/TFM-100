@@ -3,6 +3,7 @@
 void J1939::begin(uint8_t priority, uint16_t pgn, uint8_t src){
     messageId = (uint32_t)(((uint32_t)(priority & 0x07) << 26) | ((uint32_t)pgn << 8) | src) | 0x80000000;
     length = 0;
+    initialized = true;
 }
 
 void J1939::setData(uint8_t *data, uint8_t length){

@@ -6,17 +6,20 @@
 
 class J1939 {
     public:
-        J1939(): messageId(0), length(0) {};
+        J1939(): messageId(0), length(0), initialized(false) {
+            memset(data, 0, sizeof(data));
+        };
         void begin(uint8_t priority, uint16_t pgn, uint8_t src);
         void setData(uint8_t *data, uint8_t length);
         void getData(uint8_t *data, uint8_t *length);
+        bool isInitialized() { return initialized; };
 
         uint32_t messageId;
 
     protected:
-        
         uint8_t length;
         uint8_t data[8];
+        bool initialized;
 
 };
 

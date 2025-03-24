@@ -66,20 +66,25 @@ void loop_CanMessageEachSecond(uint32_t td){
   uint8_t data[8];
   uint8_t length;
   // Send HeartBeat
-  CAN_heartbeat_msg.getData(data, &length);
-  if (CAN0.sendMsgBuf(CAN_heartbeat_msg.messageId, length, data) != CAN_OK)
-    AddMessageToLog("Unable to send heartbeat", false);
+  if (CAN_heartbeat_msg.isInitialized()){
+    CAN_heartbeat_msg.getData(data, &length);
+    if (CAN0.sendMsgBuf(CAN_heartbeat_msg.messageId, length, data) != CAN_OK)
+      AddMessageToLog("Unable to send heartbeat", false);
+  }
   
   // Send Temperature
+  if(CAN_Temp_msg.isInitialized()){
   CAN_Temp_msg.getData(data, &length);
   if (CAN0.sendMsgBuf(CAN_Temp_msg.messageId, length, data) != CAN_OK)
     AddMessageToLog("Unable to send temperature", false);
-  
-  // Send Temperature and Flow
-  CAN_TempAndFlow.getData(data, &length);
-  if (CAN0.sendMsgBuf(CAN_TempAndFlow.messageId, length, data) != CAN_OK)
-    AddMessageToLog("Unable to send temperature and flow", false);  
+  }
 
+  // Send Temperature and Flow
+  if(CAN_TempAndFlow.isInitialized()){
+    CAN_TempAndFlow.getData(data, &length);
+    if (CAN0.sendMsgBuf(CAN_TempAndFlow.messageId, length, data) != CAN_OK)
+      AddMessageToLog("Unable to send temperature and flow", false);  
+  }
 }
 
 
@@ -122,6 +127,12 @@ void setup(){
   // Configuring pin for /INT input
   pinMode(MCP_INT, INPUT_PULLUP); 
 
+  //Set up heartbeat message
+  if (mcp_init){
+    CAN_heartbeat_msg.begin(node_id, &node_status, []() { return scheduler.getUptime(); });
+    scheduler.addTask(loop_CanMessageEachSecond, 1000);
+  }
+
   // Initialize the MAX31865
   bool supply_init = supply_sensor.begin((float)PT100_ALPHA);
   // Add some reading to understand if the micro is working
@@ -153,7 +164,6 @@ void setup(){
   }
 
   // Initialize J1939
-  CAN_heartbeat_msg.begin(node_id, &node_status, []() { return scheduler.getUptime(); });
   CAN_Temp_msg.begin(node_id, &(supply_sensor.last_temperature), &(return_sensor.last_temperature));
   CAN_TempAndFlow.begin(node_id, &(supply_sensor.average_temperature), &(return_sensor.average_temperature), &flow);
 
@@ -164,7 +174,7 @@ void setup(){
   }, PT100_SAMPLE_RATE);
 
   // Send data every 1000ms
-  scheduler.addTask(loop_CanMessageEachSecond, 1000);
+  
   node_status = RUN;
 }
 
