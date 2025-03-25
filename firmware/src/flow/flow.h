@@ -13,7 +13,7 @@ class Flow {
         Flow(uint8_t tickPerLiter): last_measured_flow_l_h(0), 
                 tickPerLiter(tickPerLiter), 
                 callback(NULL), 
-                last_sample_time(0),
+                last_millis(0),
                 last_period_s(0.0),
                 timeout_s(TIMEOUT_S)
                 {};
@@ -26,7 +26,7 @@ class Flow {
         uint16_t last_measured_flow_l_h;
         uint8_t tickPerLiter;
         void (*callback)(float);
-        uint32_t last_sample_time; 
+        uint32_t last_millis; 
         float last_period_s;
         float timeout_s;
         uint16_t calculateFlow(float period); // returns l/h
