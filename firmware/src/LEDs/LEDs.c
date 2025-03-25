@@ -20,6 +20,7 @@
 #include "LEDs.h"
  
 LEDs_t *LEDs;
+uint32_t last_millis = 0;
 
 void LEDs_init(uint8_t redPin, uint8_t greenPin){
     if (LEDs) free(LEDs);
@@ -33,13 +34,14 @@ void LEDs_init(uint8_t redPin, uint8_t greenPin){
     digitalWrite(greenPin, HIGH);
 }
  
-void LEDs_process(uint32_t timeDifference_ms, NodeStatus_t state, bool ErrCANbusOff, 
+void LEDs_process(NodeStatus_t state, bool ErrCANbusOff, 
 bool ErrCANbusWarn, bool PT100Err, bool HwFailure){
 uint8_t rd = 0;
 uint8_t gr = 0;
 bool tick = false;
 
-    LEDs->LEDtmr50ms += timeDifference_ms;
+    LEDs->LEDtmr50ms += millis() - last_millis;
+    last_millis = millis();
     while (LEDs->LEDtmr50ms >= 50U) {
         bool rdFlickerNext = (LEDs->LEDred & (uint8_t)LED_flicker) == 0U;
 

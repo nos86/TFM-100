@@ -93,9 +93,6 @@ void setup(){
   LEDs_init(LED_RED, LED_GREEN);
 
   // Initialize Scheduler
-  scheduler.addTask([](uint32_t timeDifference_ms) {
-    LEDs_process(timeDifference_ms, node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
-  }, 50);
 
   // Initialize Serial Monitor
   Serial.begin(115200); // This pipes to the serial monitor
@@ -181,6 +178,7 @@ void setup(){
 void loop()
 {
   scheduler.run();
+  LEDs_process(node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
   supply_sensor.process();
   return_sensor.process();
   flowObj.process();
