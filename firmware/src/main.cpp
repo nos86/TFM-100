@@ -59,7 +59,7 @@ PT100 return_sensor = PT100(RETURN_CS);
 
 // Flow Sensor Variables
 Flow flowObj = Flow(FLOW_TICKS_PER_LITER); 
-float flow = 0.0;
+uint16_t flow_l_h = 0;
 
 /* Send messages on CAN each second */
 void loop_CanMessageEachSecond(uint32_t td){
@@ -80,6 +80,7 @@ void loop_CanMessageEachSecond(uint32_t td){
   }
 
   // Send Temperature and Flow
+  flow_l_h = flowObj.getFlow(); // Update flow value
   if(CAN_TempAndFlow.isInitialized()){
     CAN_TempAndFlow.getData(data, &length);
     if (CAN0.sendMsgBuf(CAN_TempAndFlow.messageId, length, data) != CAN_OK)
@@ -165,7 +166,7 @@ void setup(){
 
   // Initialize J1939
   CAN_Temp_msg.begin(node_id, &(supply_sensor.last_temperature), &(return_sensor.last_temperature));
-  CAN_TempAndFlow.begin(node_id, &(supply_sensor.average_temperature), &(return_sensor.average_temperature), &flow);
+  CAN_TempAndFlow.begin(node_id, &(supply_sensor.average_temperature), &(return_sensor.average_temperature), &flow_l_h);
 
   // Trigger new reading every 1000ms
   scheduler.addTask([](uint32_t td){ 
