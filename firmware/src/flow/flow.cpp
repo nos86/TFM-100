@@ -48,6 +48,10 @@ void Flow::begin(void (*callback)(float)){
     this->callback = callback;
 }
 
+uint16_t Flow::calculateFlow(float period){
+    return (uint16_t)(3600 * (1.0f / tickPerLiter) / period);
+}
+
 void Flow::process(){
     if (step == CAPTURE_COMPLETE) {
         uint16_t ticks;
@@ -58,11 +62,21 @@ void Flow::process(){
         }
         t1 = t2; // Set end-time as start-time
         step = CAPTURE_INTERMEDIATE;
-        last_flow = 3600 * (1.0f / tickPerLiter) / ((float)ticks * TICK_BASE_TIME);  
-        if (callback != NULL) callback(last_flow);
+        last_period_s = ((float)ticks * TICK_BASE_TIME);
+        last_measured_flow_l_h = calculateFlow(last_period_s);
+        last_sample_time = millis();
+        if (callback != NULL) callback(last_measured_flow_l_h);
+    } 
+    else if (millis() - last_sample_time > 1000 * timeout_s) {
+        last_measured_flow_l_h = 0;
     }
 }
 
-float Flow::getFlow() { // in l/h
-    return last_flow;
+uint16_t Flow::getFlow() { // in l/h
+    float diff_s = (millis() - last_sample_time) / 1000.0;
+    if ((last_period_s < diff_s) && (diff_s < timeout_s)) {
+        return calculateFlow((float)diff_s);
+    }else{
+        return last_measured_flow_l_h;
+    }
 }
