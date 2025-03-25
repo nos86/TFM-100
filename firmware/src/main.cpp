@@ -174,8 +174,7 @@ void setup(){
       if(!return_sensor.triggerMeasurement()) AddMessageToLog("Unable to read RETURN", false);
   }, PT100_SAMPLE_RATE);
 
-  // Send data every 1000ms
-  
+  // Update node status
   node_status = RUN;
 }
 

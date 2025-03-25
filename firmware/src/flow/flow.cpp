@@ -58,7 +58,7 @@ void Flow::process(){
         if (t2 >= t1) {
             ticks = t2 - t1;  // Nessun overflow
         } else {
-            ticks = (65536 - t1) + t2;  // Correzione overflow
+            ticks = (UINT16_MAX + 1 - t1) + t2;  // Correzione overflow
         }
         t1 = t2; // Set end-time as start-time
         step = CAPTURE_INTERMEDIATE;

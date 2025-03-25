@@ -1,10 +1,10 @@
 #ifndef FLOW_H
 #define FLOW_H
 
-#define DEBOUNCE_TIME 200.0 //mS
-#define TICK_BASE_TIME 0.000128 //128uS
+#define DEBOUNCE_TIME 200.0f //mS
+#define TICK_BASE_TIME 0.000128f //128uS
 #define DEBOUNCE_TICK (DEBOUNCE_TIME / TICK_BASE_TIME / 1000)
-#define TIMEOUT_S (float)(TICK_BASE_TIME * (UINT16_MAX + 1))
+#define TIMEOUT_S (TICK_BASE_TIME * ((float)UINT16_MAX + 1))
 
 #include <Arduino.h>
 
