@@ -36,9 +36,9 @@ void LEDs_init(uint8_t redPin, uint8_t greenPin){
  
 void LEDs_process(NodeStatus_t state, bool ErrCANbusOff, 
 bool ErrCANbusWarn, bool PT100Err, bool HwFailure){
-uint8_t rd = 0;
-uint8_t gr = 0;
-bool tick = false;
+    uint8_t rd = 0;
+    uint8_t gr = 0;
+    bool tick = false;
 
     LEDs->LEDtmr50ms += millis() - last_millis;
     last_millis = millis();

@@ -145,7 +145,6 @@ void setup(){
 
   // Initialize Flow Sensor
   flowObj.begin([](float flow){
-    Serial.println("Flow: " + String(flow, 2) + "l/h");
   });
   
   //Calculate value of HW failure
