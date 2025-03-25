@@ -185,6 +185,10 @@ void loop()
   return_sensor.process();
   flowObj.process();
   PT100Err = supply_sensor.errorDetected || return_sensor.errorDetected;
-  
+  if (flow_l_h == 0){
+    node_status = SLEEP;
+  }else{
+    node_status = RUN;
+  }
   
 }
