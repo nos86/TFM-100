@@ -21,16 +21,15 @@
  * LEDs object, initialized by CO_LEDs_init()
  */
 typedef struct {
-    uint32_t LEDtmr50ms;   /**< 50ms led timer */
-    uint8_t LEDtmr200ms;   /**< 200ms led timer */
-    uint8_t LEDtmrflash_1; /**< single flash led timer */
-    uint8_t LEDtmrflash_2; /**< double flash led timer */
-    uint8_t LEDtmrflash_3; /**< triple flash led timer */
-    uint8_t LEDtmrflash_4; /**< quadruple flash led timer */
-    uint8_t LEDred;        /**< red led bitfield, to be combined with @ref LED_bitmasks */
-    uint8_t LEDgreen;      /**< green led bitfield, to be combined with @ref LED_bitmasks */
-    uint8_t LedRedPin;     /**< red led pin */
-    uint8_t LedGreenPin;   /**< green led pin */
+    uint32_t LEDtmr50ms;        /**< 50ms led timer */
+    uint8_t LEDtmr200ms;        /**< 200ms led timer */
+    uint8_t LEDtmrflash_1;      /**< single flash led timer */
+    uint8_t LEDtmrflash_2;      /**< double flash led timer */
+    uint8_t LEDtmrflash_3;      /**< triple flash led timer */
+    uint8_t LEDtmrflash_4;      /**< quadruple flash led timer */
+    uint8_t GenericLedStatus;   /**< led status bitfield, to be combined with @ref LED_bitmasks */
+    uint8_t LedRedPin;          /**< red led pin */
+    uint8_t LedGreenPin;        /**< green led pin */
 } LEDs_t;
 
 #ifdef __cplusplus

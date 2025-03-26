@@ -36,77 +36,63 @@ void LEDs_init(uint8_t redPin, uint8_t greenPin){
  
 void LEDs_process(NodeStatus_t state, bool ErrCANbusOff, 
 bool ErrCANbusWarn, bool PT100Err, bool HwFailure){
-    uint8_t rd = 0;
-    uint8_t gr = 0;
     bool tick = false;
 
-    LEDs->LEDtmr50ms += millis() - last_millis;
+    LEDs->LEDtmr50ms += (millis() - last_millis);
     last_millis = millis();
-    while (LEDs->LEDtmr50ms >= 50U) {
-        bool rdFlickerNext = (LEDs->LEDred & (uint8_t)LED_flicker) == 0U;
-
+    while (LEDs->LEDtmr50ms >= 50) {
         tick = true;
-        LEDs->LEDtmr50ms -= 50U;
+        LEDs->LEDtmr50ms -= 50;
 
-        if (++LEDs->LEDtmr200ms > 3U) {
-            /* calculate 2,5Hz blinking and flashing */
+        /* calculate 10Hz flickering */
+        LEDs->GenericLedStatus ^= LED_flicker;
+
+        /* calculate 200ms events */
+        if (++LEDs->LEDtmr200ms > 3) {
             LEDs->LEDtmr200ms = 0;
-            rd = 0;
-            gr = 0;
+            /* calculate 2,5Hz blinking */
+            LEDs->GenericLedStatus ^= LED_blink;
 
-            if ((LEDs->LEDred & LED_blink) == 0U) {
-                rd |= LED_blink;
-            } else {
-                gr |= LED_blink;
-            }
-
+            /* calculate Single Flashing */
             switch (++LEDs->LEDtmrflash_1) {
-                case 1: rd |= LED_flash_1; break;
-                case 2: gr |= LED_flash_1; break;
-                case 6: LEDs->LEDtmrflash_1 = 0; break;
-                default: /* none */ break;
+                case 1: LEDs->GenericLedStatus |= LED_flash_1; 
+                        break;
+                case 6: LEDs->LEDtmrflash_1 = 0;
+                default: LEDs->GenericLedStatus &= ~LED_flash_1; break;
             }
+
+            /* calculate Double Flashing */
             switch (++LEDs->LEDtmrflash_2) {
                 case 1:
-                case 3: rd |= LED_flash_2; break;
-                case 2:
-                case 4: gr |= LED_flash_2; break;
-                case 8: LEDs->LEDtmrflash_2 = 0; break;
-                default: /* none */ break;
+                case 3: LEDs->GenericLedStatus |= LED_flash_2;
+                        break;
+                case 8: LEDs->LEDtmrflash_2 = 0;
+                default: LEDs->GenericLedStatus &= ~LED_flash_2; break;
             }
+
+            /* calculate Triple Flashing */
             switch (++LEDs->LEDtmrflash_3) {
                 case 1:
                 case 3:
-                case 5: rd |= LED_flash_3; break;
-                case 2:
-                case 4:
-                case 6: gr |= LED_flash_3; break;
-                case 10: LEDs->LEDtmrflash_3 = 0; break;
-                default: /* none */ break;
+                case 5: 
+                    LEDs->GenericLedStatus |= LED_flash_3; 
+                    break;
+                case 10: LEDs->LEDtmrflash_3 = 0;
+                default: LEDs->GenericLedStatus &= ~LED_flash_3; break;
             }
+
+            /* calculate Quadruple Flashing */
             switch (++LEDs->LEDtmrflash_4) {
                 case 1:
                 case 3:
                 case 5:
-                case 7: rd |= LED_flash_4; break;
-                case 2:
-                case 4:
-                case 6:
-                case 8: gr |= LED_flash_4; break;
-                case 12: LEDs->LEDtmrflash_4 = 0; break;
-                default: /* none */ break;
+                case 7: LEDs->GenericLedStatus |= LED_flash_4;
+                        break;
+                case 12: LEDs->LEDtmrflash_4 = 0;
+                default: 
+                    LEDs->GenericLedStatus &= ~LED_flash_4; 
+                    break;
             }
-        } else {
-            /* clear flicker and CANopen bits, keep others */
-            rd = LEDs->LEDred & (0xFFU ^ (LED_flicker));
-            gr = LEDs->LEDgreen & (0xFFU ^ (LED_flicker));
-        }
-
-        /* calculate 10Hz flickering */
-        if (rdFlickerNext) {
-            rd |= LED_flicker;
-        } else {
-            gr |= LED_flicker;
         }
 
     } /* while (LEDs->LEDtmr50ms >= 50) */
@@ -114,27 +100,24 @@ bool ErrCANbusWarn, bool PT100Err, bool HwFailure){
     if (tick) {
         uint8_t rd_co, gr_co;
         
-        LEDs->LEDred = rd;
-        LEDs->LEDgreen = gr;
-        
         /* red ERROR LED */
-        if (ErrCANbusOff) {
+        if (HwFailure) {
+            rd_co = LEDs->GenericLedStatus & LED_flicker;
+        } else if (ErrCANbusOff) {
             rd_co = 1;
-        } else if (HwFailure) {
-            rd_co = rd & LED_flicker;
         } else if (ErrCANbusWarn) {
-            rd_co = rd & LED_flash_1;
+            rd_co = LEDs->GenericLedStatus & LED_flash_1;
         } else if (PT100Err) {
-            rd_co = rd & LED_blink;
+            rd_co = LEDs->GenericLedStatus & LED_blink;
         } else {
             rd_co = 0;
         }
         
         /* green RUN LED */
         if (state == SLEEP) {
-            gr_co = gr & LED_flash_1;
+            gr_co = LEDs->GenericLedStatus & LED_flash_1;
         } else if (state == SETUP) {
-            gr_co = gr & LED_flicker;
+            gr_co = (LEDs->GenericLedStatus & LED_flicker) == 0; // Inverted
         } else if (state == RUN) {
             gr_co = 1;
         } else {
