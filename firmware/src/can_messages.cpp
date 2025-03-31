@@ -10,7 +10,7 @@ extern J1939_FilteredTemperatureAndFlow CAN_TempAndFlow;
 
 extern MCP_CAN CAN0;
 extern Flow flowObj;
-extern uint16_t flow_l_h;
+uint16_t flow_l_h;
 
 /* Send messages on CAN each second */
 void loop_CanMessageEachSecond(uint32_t td){
@@ -37,4 +37,8 @@ void loop_CanMessageEachSecond(uint32_t td){
     if (CAN0.sendMsgBuf(CAN_TempAndFlow.messageId, length, data) != CAN_OK)
       AddMessageToLog("Unable to send temperature and flow", false);  
   }
+}
+
+bool isFlowZero(){
+  return (flow_l_h == 0);
 }
