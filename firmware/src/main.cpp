@@ -51,9 +51,6 @@ Scheduler scheduler = Scheduler();
 
 // CAN-Bus Variables
 MCP_CAN CAN0(MCP_CS);     // Set CS to pin 4
-uint32_t rxId;
-uint8_t len;
-uint8_t rxBuf[8];
 
 // J1939 Variables
 J1939_HeartBeat CAN_heartbeat_msg = J1939_HeartBeat();
@@ -67,11 +64,8 @@ PT100 return_sensor = PT100(RETURN_CS);
 // Flow Sensor Variables
 Flow flowObj = Flow(FLOW_TICKS_PER_LITER); 
 
-
 void setup(){
   LEDs_init(LED_RED, LED_GREEN);
-
-  // Initialize Scheduler
 
   // Initialize Serial Monitor
   Serial.begin(115200); // This pipes to the serial monitor
@@ -151,16 +145,20 @@ void setup(){
 
 void loop()
 {
+  // Run the scheduler
   scheduler.run();
-  LEDs_process(node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
+  // process each sensor
   supply_sensor.process();
   return_sensor.process();
   flowObj.process();
+  // Check for PT100 errors
   PT100Err = supply_sensor.errorDetected || return_sensor.errorDetected;
-  if (flow_l_h == 0){
+  // Check if the flow is zero
+  if (isFlowZero()){
     node_status = SLEEP;
   }else{
     node_status = RUN;
   }
-  
+  // Update LEDs
+  LEDs_process(node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
 }
