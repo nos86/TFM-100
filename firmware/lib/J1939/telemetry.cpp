@@ -1,5 +1,4 @@
 #include "j1939.h"
-#include "main.h"
 #include "config.h"
 
 #ifndef FIRMWARE_VERSION

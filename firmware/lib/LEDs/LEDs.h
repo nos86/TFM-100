@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "status.h"
+#include <status.h>
 
 /**
  * @defgroup LED_bitmasks LED bitmasks

@@ -19,17 +19,16 @@
 //MyLib
 #include <scheduler.h>
 #include <logger.h>
+#include <LEDs.h>
+#include <PT100.h>
+#include <j1939.h>
+#include <flow.h>
 
 //3rd parties lib
 #include <mcp_can.h>
 
-//Project Headers
-#include "LEDs/LEDs.h"
-#include "PT100/PT100.h"
-#include "J1939/j1939.h"
-#include "flow/flow.h"
-#include "main.h"
-#include "status.h"
+//Include Headers
+#include <status.h>
 
 /* Node Status */
 NodeStatus_t node_status = SETUP;
