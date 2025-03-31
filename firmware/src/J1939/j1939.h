@@ -1,7 +1,9 @@
 #ifndef J1939_H
 #define J1939_H
 
-#include <Arduino.h>
+#include <stdint.h>
+#include <string.h>
+
 #include "status.h"
 
 class J1939 {

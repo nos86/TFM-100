@@ -1,7 +1,7 @@
 #ifndef PT100_H
 #define PT100_H
 
-#include <Arduino.h>
+#include <stdint.h>
 #include <MAX31865_NonBlocking.h>
 
 class PT100 {

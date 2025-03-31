@@ -1,7 +1,9 @@
 #ifndef LEDS_H
 #define LEDS_H
 
-#include <Arduino.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 #include "status.h"
 
 /**
@@ -35,6 +37,10 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern void pinMode(uint8_t pin, uint8_t mode);
+extern void digitalWrite(uint8_t pin, uint8_t state);
+extern unsigned long millis(void);
 
 void LEDs_init(uint8_t redPin, uint8_t greenPin);
 void LEDs_process(NodeStatus_t state, bool ErrCANbusOff, 
