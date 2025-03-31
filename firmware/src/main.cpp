@@ -86,10 +86,6 @@ void setup(){
   while(HwFailure){
   /* Configure microcontroller. */
   AddInfoToLog("Configuring microcontroller...");
-  pinMode(DS_B0, INPUT_PULLUP);
-  pinMode(DS_B1, INPUT_PULLUP);
-  pinMode(DS_B2, INPUT_PULLUP);
-  pinMode(DS_B3, INPUT_PULLUP);
 
   // Read node address for dip-switch
   node_id = dip_switch_read() | NODE_ID_BASE;
