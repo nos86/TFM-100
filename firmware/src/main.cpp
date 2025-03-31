@@ -31,7 +31,8 @@
 #include <status.h>
 
 //External functions
-uint8_t dip_switch_read(void);
+uint8_t dip_switch_read(void); //dip_switch.cpp
+void loop_CanMessageEachSecond(uint32_t td); //loop_can_messages.cpp
 
 /* Node Status */
 NodeStatus_t node_status = SETUP;
@@ -62,34 +63,6 @@ PT100 return_sensor = PT100(RETURN_CS);
 // Flow Sensor Variables
 Flow flowObj = Flow(FLOW_TICKS_PER_LITER); 
 uint16_t flow_l_h = 0;
-
-/* Send messages on CAN each second */
-void loop_CanMessageEachSecond(uint32_t td){
-  uint8_t data[8];
-  uint8_t length;
-  // Send HeartBeat
-  if (CAN_heartbeat_msg.isInitialized()){
-    CAN_heartbeat_msg.getData(data, &length);
-    if (CAN0.sendMsgBuf(CAN_heartbeat_msg.messageId, length, data) != CAN_OK)
-      AddMessageToLog("Unable to send heartbeat", false);
-  }
-  
-  // Send Temperature
-  if(CAN_Temp_msg.isInitialized()){
-  CAN_Temp_msg.getData(data, &length);
-  if (CAN0.sendMsgBuf(CAN_Temp_msg.messageId, length, data) != CAN_OK)
-    AddMessageToLog("Unable to send temperature", false);
-  }
-
-  // Send Temperature and Flow
-  flow_l_h = flowObj.getFlow(); // Update flow value
-  if(CAN_TempAndFlow.isInitialized()){
-    CAN_TempAndFlow.getData(data, &length);
-    if (CAN0.sendMsgBuf(CAN_TempAndFlow.messageId, length, data) != CAN_OK)
-      AddMessageToLog("Unable to send temperature and flow", false);  
-  }
-}
-
 
 void setup(){
   LEDs_init(LED_RED, LED_GREEN);
