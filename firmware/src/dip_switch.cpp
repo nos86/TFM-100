@@ -1,6 +1,6 @@
 
 #include <Arduino.h>
-#include "main.h"
+#include <config.h>
 
 uint8_t dip_switch_read(void) {
 

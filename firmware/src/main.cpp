@@ -30,6 +30,9 @@
 //Include Headers
 #include <status.h>
 
+//External functions
+uint8_t dip_switch_read(void);
+
 /* Node Status */
 NodeStatus_t node_status = SETUP;
 uint8_t node_id;
