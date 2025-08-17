@@ -19,17 +19,24 @@
 //MyLib
 #include <scheduler.h>
 #include <logger.h>
+#include <LEDs.h>
+#include <PT100.h>
+#include <j1939.h>
+#include <flow.h>
 
 //3rd parties lib
 #include <mcp_can.h>
 
-//Project Headers
-#include "LEDs/LEDs.h"
-#include "PT100/PT100.h"
-#include "J1939/j1939.h"
-#include "flow/flow.h"
-#include "main.h"
-#include "status.h"
+//Include Headers
+#include <status.h>
+
+//External functions
+uint8_t dip_switch_read(void); //dip_switch.cpp
+void loop_CanMessageEachSecond(uint32_t td); //loop_can_messages.cpp
+bool isFlowZero(void); //loop_can_messages.cpp
+
+//External variables 
+extern uint16_t flow_l_h; //loop_can_messages.cpp
 
 /* Node Status */
 NodeStatus_t node_status = SETUP;
@@ -44,9 +51,6 @@ Scheduler scheduler = Scheduler();
 
 // CAN-Bus Variables
 MCP_CAN CAN0(MCP_CS);     // Set CS to pin 4
-uint32_t rxId;
-uint8_t len;
-uint8_t rxBuf[8];
 
 // J1939 Variables
 J1939_HeartBeat CAN_heartbeat_msg = J1939_HeartBeat();
@@ -59,40 +63,9 @@ PT100 return_sensor = PT100(RETURN_CS);
 
 // Flow Sensor Variables
 Flow flowObj = Flow(FLOW_TICKS_PER_LITER); 
-uint16_t flow_l_h = 0;
-
-/* Send messages on CAN each second */
-void loop_CanMessageEachSecond(uint32_t td){
-  uint8_t data[8];
-  uint8_t length;
-  // Send HeartBeat
-  if (CAN_heartbeat_msg.isInitialized()){
-    CAN_heartbeat_msg.getData(data, &length);
-    if (CAN0.sendMsgBuf(CAN_heartbeat_msg.messageId, length, data) != CAN_OK)
-      AddMessageToLog("Unable to send heartbeat", false);
-  }
-  
-  // Send Temperature
-  if(CAN_Temp_msg.isInitialized()){
-  CAN_Temp_msg.getData(data, &length);
-  if (CAN0.sendMsgBuf(CAN_Temp_msg.messageId, length, data) != CAN_OK)
-    AddMessageToLog("Unable to send temperature", false);
-  }
-
-  // Send Temperature and Flow
-  flow_l_h = flowObj.getFlow(); // Update flow value
-  if(CAN_TempAndFlow.isInitialized()){
-    CAN_TempAndFlow.getData(data, &length);
-    if (CAN0.sendMsgBuf(CAN_TempAndFlow.messageId, length, data) != CAN_OK)
-      AddMessageToLog("Unable to send temperature and flow", false);  
-  }
-}
-
 
 void setup(){
   LEDs_init(LED_RED, LED_GREEN);
-
-  // Initialize Scheduler
 
   // Initialize Serial Monitor
   Serial.begin(115200); // This pipes to the serial monitor
@@ -107,10 +80,6 @@ void setup(){
   while(HwFailure){
   /* Configure microcontroller. */
   AddInfoToLog("Configuring microcontroller...");
-  pinMode(DS_B0, INPUT_PULLUP);
-  pinMode(DS_B1, INPUT_PULLUP);
-  pinMode(DS_B2, INPUT_PULLUP);
-  pinMode(DS_B3, INPUT_PULLUP);
 
   // Read node address for dip-switch
   node_id = dip_switch_read() | NODE_ID_BASE;
@@ -176,16 +145,20 @@ void setup(){
 
 void loop()
 {
+  // Run the scheduler
   scheduler.run();
-  LEDs_process(node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
+  // process each sensor
   supply_sensor.process();
   return_sensor.process();
   flowObj.process();
+  // Check for PT100 errors
   PT100Err = supply_sensor.errorDetected || return_sensor.errorDetected;
-  if (flow_l_h == 0){
+  // Check if the flow is zero
+  if (isFlowZero()){
     node_status = SLEEP;
   }else{
     node_status = RUN;
   }
-  
+  // Update LEDs
+  LEDs_process(node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
 }

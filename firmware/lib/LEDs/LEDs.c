@@ -17,7 +17,14 @@
  * - 1000ms off
  */
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "LEDs.h"
+
+#define OUTPUT 0x01
+#define HIGH 0x01
+#define LOW 0x00
  
 LEDs_t *LEDs;
 uint32_t last_millis = 0;

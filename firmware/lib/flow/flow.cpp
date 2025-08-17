@@ -1,4 +1,4 @@
-#include "flow/flow.h"
+#include <flow.h>
 #include "config.h"
 
 typedef enum {

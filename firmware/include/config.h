@@ -14,6 +14,13 @@
 #define FLOW_SENSOR_PIN 0 // RX - D0
 #define FLOW_TICKS_PER_LITER 4
 
+// Dip switch pin definitions
+#define DS_B3 10
+#define DS_B2 9
+#define DS_B1 8
+#define DS_B0 6
+
+#define NODE_ID_BASE 0x10 // Base node ID
 
 #define VARIANT_FULL 0x01 // Default variant
 #define VARIANT_SIMULATED_FLOW 0x02 // Simulated flow variant
