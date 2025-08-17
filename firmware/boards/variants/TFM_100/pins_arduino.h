@@ -280,7 +280,7 @@ const uint8_t PROGMEM digital_pin_to_bit_mask_PGM[] = {
     _BV(1), // D22 - A4 - PF1
     _BV(0), // D23 - A5 - PF0
     
-	  _BV(4), // D24 / D4 - A6 - PD4
+    _BV(4), // D24 / D4 - A6 - PD4
     _BV(7), // D25 / D6 - A7 - PD7
     _BV(4), // D26 / D8 - A8 - PB4
     _BV(5), // D27 / D9 - A9 - PB5
