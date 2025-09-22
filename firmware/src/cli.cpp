@@ -169,19 +169,33 @@ void CLIScreenManager::drawHardwareFailure(bool mcp_init, bool mcp_normal, bool 
 
     printHeader("TFM-100 - HARDWARE FAILURE", ansi->red);
     printSeparator('-');
+    if ((Serial.dtr() == LOW) && (clientConnected))
+    {
+        clientConnected = false;
+        return false;
+    }
+    else if (Serial.dtr() == HIGH && !clientConnected)
+    {
+        clientConnected = true;
+        ansi->cursorHide();
 
-    ansi->gotoXY(1, 4);
-    ansi->println();
-    printStatusIndicator(F("CAN Controller Initialization"), mcp_init);
-    printStatusIndicator(F("CAN Controller Operation"), mcp_normal);
-    printStatusIndicator(F("PT100 Supply Sensor Initialization"), supply_init);
-    printStatusIndicator(F("PT100 Return Sensor Initialization"), return_init);
+        printHeader("TFM-100 - HARDWARE FAILURE", ansi->red);
+        printSeparator('-');
+
+        ansi->gotoXY(1, 4);
+        ansi->println();
+        printStatusIndicator(F("CAN Controller Initialization"), mcp_init);
+        printStatusIndicator(F("CAN Controller Operation"), mcp_normal);
+        printStatusIndicator(F("PT100 Supply Sensor Initialization"), supply_init);
+        printStatusIndicator(F("PT100 Return Sensor Initialization"), return_init);
+        printFooter(true);
+    }
+
     ansi->gotoXY(1, 11);
     ansi->print(F("Reboot in "));
     ansi->print(60 - (millis() / 1000) % 60);
     ansi->println(F(" seconds..."));
 
-    printFooter();
 }
 
 void CLIScreenManager::drawRealTimeSignals(bool full_update)

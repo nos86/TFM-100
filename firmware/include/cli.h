@@ -54,7 +54,7 @@ public:
     // Controllo schermo
     void clearScreen();
 
-    bool clientConnected;
+    bool clientConnected = false;
 
     // Metodi di disegno delle schermate
     void drawRealTimeSignals(bool full_update = true);

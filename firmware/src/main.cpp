@@ -110,6 +110,7 @@ void setup()
     cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
     while (millis() < 60000)
     {
+      ledIndicators.process(true);
       scheduler.run();
     }
     wdt_enable(WDTO_15MS);

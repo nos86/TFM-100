@@ -3,10 +3,10 @@
  * ----------------------------------------------------------------------
  * | Behavior          | Green LED           | Red LED                   |
  * ----------------------------------------------------------------------
- * | Off               | Init                | No Error                  |
+ * | Off               | STOP                | No Error                  |
  * | Flickering (10Hz) | Setup               | Hardware Failure          |
  * | Blinking (2.5Hz)  | CLI connected       | PT100 Reading Error       |
- * | Single Flash      | Sleep               | CAN warning               |
+ * | Single Flash      | SLEEP               | CAN warning               |
  * | On                | RUN                 | CAN Bus Off               |
  * ----------------------------------------------------------------------
  *
@@ -156,7 +156,7 @@ void LEDs::process(bool HwFailure)
         else if (node_status == RUN)
             gr_co = 1;
         else if (node_status == STOP)
-            gr_co = GenericLedStatus & LED_blink;
+            gr_co = GenericLedStatus & 0; // Always off
         else if (node_status == SLEEP)
             gr_co = GenericLedStatus & LED_flash_1;
         else if (node_status == SETUP)
