@@ -107,9 +107,10 @@ void setup()
   if (!mcp_normal || !supply_init || !return_init)
   {
     node_status = STOP;
-    cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
-    while (millis() < 60000)
+    bool reboot_now = false;
+    while (millis() < 60000 && !reboot_now)
     {
+      reboot_now = cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
       ledIndicators.process(true);
       scheduler.run();
     }

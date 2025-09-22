@@ -162,13 +162,11 @@ void CLIScreenManager::printCenteredText(const String &text)
     ansi->println(text);
 }
 
-void CLIScreenManager::drawHardwareFailure(bool mcp_init, bool mcp_normal, bool supply_init, bool return_init)
+bool CLIScreenManager::drawHardwareFailure(bool mcp_init, bool mcp_normal, bool supply_init, bool return_init)
 {
     if (!ansi_enabled)
-        return;
+        return false;
 
-    printHeader("TFM-100 - HARDWARE FAILURE", ansi->red);
-    printSeparator('-');
     if ((Serial.dtr() == LOW) && (clientConnected))
     {
         clientConnected = false;
@@ -196,6 +194,14 @@ void CLIScreenManager::drawHardwareFailure(bool mcp_init, bool mcp_normal, bool 
     ansi->print(60 - (millis() / 1000) % 60);
     ansi->println(F(" seconds..."));
 
+    if (ansi->available() > 0)
+    {
+        String inputStr = String((char)ansi->read());
+        inputStr.toLowerCase();
+        if (inputStr.equals("r"))
+            return true;
+    }
+    return false;
 }
 
 void CLIScreenManager::drawRealTimeSignals(bool full_update)
@@ -497,7 +503,7 @@ void CLIScreenManager::printSeparator(char character)
     ansi->println();
 }
 
-void CLIScreenManager::printFooter()
+void CLIScreenManager::printFooter(bool failure)
 {
     ansi->gotoXY(1, terminal_height - 2);
     printSeparator('-');
@@ -511,6 +517,11 @@ void CLIScreenManager::printFooter()
     ansi->normal();
     ansi->println();
 
-    // Istruzioni di navigazione
-    ansi->print(F("Navigazione: Valori (V) | Device (D) | Errori (E) | Calibrazione (C)"));
+    if (failure)
+    {
+        ansi->print(F("Press R for Reboot"));
+    }
+    else
+        // Istruzioni di navigazione
+        ansi->print(F("Navigazione: Valori (V) | Device (D) | Errori (E) | Calibrazione (C)"));
 }
