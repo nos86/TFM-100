@@ -17,14 +17,13 @@
  * - 1000ms off
  */
 
+#include "LEDs.h"
 #include <stdlib.h>
 #include <string.h>
 
-#include "LEDs.h"
-
 #define OUTPUT 0x01
-#define HIGH 0x01
 #define LOW 0x00
+#define HIGH 0x01
 
 LEDs_t *LEDs;
 uint32_t last_millis = 0;
@@ -42,9 +41,10 @@ void LEDs_init(uint8_t redPin, uint8_t greenPin)
     digitalWrite(redPin, HIGH);
     digitalWrite(greenPin, HIGH);
 }
- 
-void LEDs_process(NodeStatus_t state, bool ErrCANbusOff, 
-bool ErrCANbusWarn, bool PT100Err, bool HwFailure){
+
+void LEDs_process(NodeStatus_t state, bool ErrCANbusOff,
+                  bool ErrCANbusWarn, bool PT100Err, bool HwFailure)
+{
     bool tick = false;
 
     LEDs->LEDtmr50ms += (millis() - last_millis);
