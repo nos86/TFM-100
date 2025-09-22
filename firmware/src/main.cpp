@@ -29,13 +29,9 @@
 // Include Headers
 #include <status.h>
 
-bool isFlowZero(void); // loop_can_messages.cpp
 // External functions
 uint8_t dip_switch_read(void);               // dip_switch.cpp
 void loop_CanMessageEachSecond(uint32_t td); // loop_can_messages.cpp
-
-// External variables
-extern uint16_t flow_l_h; // loop_can_messages.cpp
 
 /****** Shared Objects *******/
 
