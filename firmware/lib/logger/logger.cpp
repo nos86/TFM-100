@@ -1,13 +1,18 @@
 #include <Arduino.h>
 
-bool AddMessageToLog(String msg, bool status, bool inner){
-    if (inner){
+bool AddMessageToLog(String msg, bool status, bool inner)
+{
+    if (inner)
+    {
         Serial.print("  ");
     }
     Serial.print("[");
-    if (status){
+    if (status)
+    {
         Serial.print(" DONE ");
-    } else {
+    }
+    else
+    {
         Serial.print("FAILED");
     }
     Serial.print("] ");
@@ -15,18 +20,22 @@ bool AddMessageToLog(String msg, bool status, bool inner){
     return status;
 }
 
-bool AddMessageToLog(String msg, bool status){
+bool AddMessageToLog(String msg, bool status)
+{
     return AddMessageToLog(msg, status, false);
 }
 
-void AddInfoToLog(String msg, bool inner){
-    if (inner){
+void AddInfoToLog(String msg, bool inner)
+{
+    if (inner)
+    {
         Serial.print("  ");
     }
     Serial.print("[ INFO ] ");
     Serial.println(msg);
 }
 
-void AddInfoToLog(String msg){
+void AddInfoToLog(String msg)
+{
     AddInfoToLog(msg, false);
 }
