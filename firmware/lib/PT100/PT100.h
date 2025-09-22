@@ -4,14 +4,13 @@
 #include <stdint.h>
 #include <MAX31865_NonBlocking.h>
 
-class PT100 {
+class PT100
+{
 private:
     MAX31865 sensor;
     bool measurementRunning;
     float alpha;
     bool filterInitialized;
-    
-    
 
 public:
     PT100(int csPin);
