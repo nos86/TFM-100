@@ -90,22 +90,13 @@ void setup()
     AddInfoToLog("Node ID: " + String(node_id));
 
     // Initialize CAN-Bus
-    bool mcp_init = (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK);
-    if (AddMessageToLog("MCP25625 Initialization", mcp_init))
-    {
-      mcp_init = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK);
-      AddMessageToLog("Set to Normal Mode", mcp_init, true);
-    }
-    // Configuring pin for /INT input
-    pinMode(MCP_INT, INPUT_PULLUP);
-
-    // Set up heartbeat message
-    if (mcp_init)
-    {
-      CAN_heartbeat_msg.begin(node_id, &node_status, []()
-                              { return scheduler.getUptime(); });
-      scheduler.addTask(loop_CanMessageEachSecond, 1000);
-    }
+    if ((mcp_init = (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK)))
+      if ((mcp_normal = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK)))
+      {
+        // Set up heartbeat message
+        CAN_heartbeat_msg.begin(node_id);
+        scheduler.addTask(loop_CanMessageEachSecond, 1000);
+      }
 
     // Initialize the MAX31865
     // Calculate value of HW failure
@@ -127,8 +118,8 @@ void setup()
     flowObj.begin([](float flow) {}); // TODO: Update energy calculation
 
     // Initialize J1939
-    CAN_Temp_msg.begin(node_id, &(supply_sensor.last_temperature), &(return_sensor.last_temperature));
-    CAN_TempAndFlow.begin(node_id, &(supply_sensor.average_temperature), &(return_sensor.average_temperature), &flow_l_h);
+    CAN_Temp_msg.begin(node_id);
+    CAN_TempAndFlow.begin(node_id);
 
     // Trigger new reading every 1000ms
     scheduler.addTask([](uint32_t td)
@@ -156,13 +147,13 @@ void loop()
   // Check for PT100 errors
   PT100Err = supply_sensor.errorDetected || return_sensor.errorDetected;
   // Check if the flow is zero
-  if (isFlowZero())
+  if (flowObj.isFlowing())
   {
-    node_status = SLEEP;
+    node_status = RUN;
   }
   else
   {
-    node_status = RUN;
+    node_status = SLEEP;
   }
   // Update LEDs
   LEDs_process(node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);

@@ -20,6 +20,7 @@ public:
     void begin();
     void begin(void (*callback)(float));
     uint16_t getFlow();
+    bool isFlowing();
     void process();
 
 private:

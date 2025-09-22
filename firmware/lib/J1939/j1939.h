@@ -41,32 +41,24 @@ class J1939_HeartBeat : public J1939
      * | 32        | 32 bits| Uptime            | Uptime of the node      | Little Endian |
      * +-----------+--------+-------------------+-------------------------+---------------+
      */
-    public:
-        void begin(uint8_t src, NodeStatus_t *state, uint32_t (*getUptime)(void));
-        void getData(uint8_t *data, uint8_t *length);
+public:
+    void begin(uint8_t src);
+    void getData(uint8_t *data, uint8_t *length);
 
-    private: 
-        NodeStatus_t *state;
-        uint32_t (*uptime_fnct)(void);
 };
 
-class J1939_Temperature : public J1939 {
-    public:
-        void begin(uint8_t src, float *supply_temp, float *return_temp);
-        void getData(uint8_t *data, uint8_t *length);
-
-    private:
-        float *supply_temp;
-        float *return_temp;
+class J1939_Temperature : public J1939
+{
+public:
+    void begin(uint8_t src);
+    void getData(uint8_t *data, uint8_t *length);
 };
 
-class J1939_FilteredTemperatureAndFlow : public J1939_Temperature {
-    public:
-        void begin(uint8_t src, float *supply_temp, float *return_temp, uint16_t *flow);
-        void getData(uint8_t *data, uint8_t *length);
-
-    private:
-        uint16_t *flow_l_h;
+class J1939_FilteredTemperatureAndFlow : public J1939_Temperature
+{
+public:
+    void begin(uint8_t src);
+    void getData(uint8_t *data, uint8_t *length);
 };
 
 #endif // J1939_H

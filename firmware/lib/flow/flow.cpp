@@ -99,3 +99,8 @@ uint16_t Flow::getFlow()
         return last_measured_flow_l_h;
     }
 }
+
+bool Flow::isFlowing()
+{
+    return (getFlow() == 0);
+}
