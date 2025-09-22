@@ -54,7 +54,6 @@ NodeStatus_t node_status = SETUP;
 
 bool CANbusOff = false;
 bool CANbusWarn = false;
-bool PT100Err = false;
 bool HwFailure = true;
 
 /* Node ID */
@@ -96,6 +95,14 @@ void setup()
         // Set up heartbeat message
         CAN_heartbeat_msg.begin(node_id);
         scheduler.addTask(loop_CanMessageEachSecond, 1000);
+        scheduler.addTask([](uint32_t td)
+                          {
+                            uint8_t error_flags = CAN0.getError();
+                            // Bus-Off when TXBO bit (transmit bus-off) is set
+                            CANbusOff = (error_flags & MCP_EFLG_TXBO) != 0;
+                            // Warning when any of EWARN, RXWAR, TXWAR bits set (error counters >= 96)
+                            CANbusWarn = (error_flags & (MCP_EFLG_EWARN | MCP_EFLG_RXWAR | MCP_EFLG_TXWAR)) != 0; },
+                          100);
       }
 
     // Initialize the MAX31865
@@ -144,8 +151,6 @@ void loop()
   supply_sensor.process();
   return_sensor.process();
   flowObj.process();
-  // Check for PT100 errors
-  PT100Err = supply_sensor.errorDetected || return_sensor.errorDetected;
   // Check if the flow is zero
   if (flowObj.isFlowing())
   {
@@ -156,5 +161,5 @@ void loop()
     node_status = SLEEP;
   }
   // Update LEDs
-  LEDs_process(node_status, CANbusOff, CANbusWarn, PT100Err, HwFailure);
+  LEDs_process();
 }

@@ -20,10 +20,15 @@
 #include "LEDs.h"
 #include <stdlib.h>
 #include <string.h>
+#include "flow.h"
+#include "PT100.h"
 
-#define OUTPUT 0x01
-#define LOW 0x00
-#define HIGH 0x01
+extern PT100 supply_sensor;      // main.cpp
+extern PT100 return_sensor;      // main.cpp
+extern Flow flowObj;             // main.cpp
+extern NodeStatus_t node_status; // main.cpp
+extern bool CANbusOff;           // main.cpp
+extern bool CANbusWarn;          // main.cpp
 
 LEDs_t *LEDs;
 uint32_t last_millis = 0;
@@ -42,8 +47,7 @@ void LEDs_init(uint8_t redPin, uint8_t greenPin)
     digitalWrite(greenPin, HIGH);
 }
 
-void LEDs_process(NodeStatus_t state, bool ErrCANbusOff,
-                  bool ErrCANbusWarn, bool PT100Err, bool HwFailure)
+void LEDs_process(bool HwFailure)
 {
     bool tick = false;
 
@@ -134,15 +138,15 @@ void LEDs_process(NodeStatus_t state, bool ErrCANbusOff,
         {
             rd_co = LEDs->GenericLedStatus & LED_flicker;
         }
-        else if (ErrCANbusOff)
+        else if (CANbusOff)
         {
             rd_co = 1;
         }
-        else if (ErrCANbusWarn)
+        else if (CANbusWarn)
         {
             rd_co = LEDs->GenericLedStatus & LED_flash_1;
         }
-        else if (PT100Err)
+        else if (supply_sensor.errorDetected || return_sensor.errorDetected)
         {
             rd_co = LEDs->GenericLedStatus & LED_blink;
         }
@@ -152,18 +156,23 @@ void LEDs_process(NodeStatus_t state, bool ErrCANbusOff,
         }
 
         /* green RUN LED */
-        if (state == SLEEP) {
+        if (0) // cli_connected)
+        {
+            gr_co = 1;
+        }
+        else if (node_status == STOP)
+        {
             gr_co = LEDs->GenericLedStatus & LED_blink;
         }
-        else if (state == SLEEP)
+        else if (node_status == SLEEP)
         {
             gr_co = LEDs->GenericLedStatus & LED_flash_1;
         }
-        else if (state == SETUP)
+        else if (node_status == SETUP)
         {
             gr_co = (LEDs->GenericLedStatus & LED_flicker) == 0; // Inverted
         }
-        else if (state == RUN)
+        else if (node_status == RUN)
         {
             gr_co = 1;
         }
