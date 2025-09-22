@@ -102,5 +102,5 @@ uint16_t Flow::getFlow()
 
 bool Flow::isFlowing()
 {
-    return (getFlow() == 0);
+    return (getFlow() > 0);
 }
