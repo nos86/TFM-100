@@ -28,6 +28,7 @@
 
 // Include Headers
 #include <status.h>
+#include <cli.h>
 
 // External functions
 uint8_t dip_switch_read(void);               // dip_switch.cpp
@@ -50,14 +51,15 @@ NodeStatus_t node_status = SETUP;
 
 bool CANbusOff = false;
 bool CANbusWarn = false;
-bool HwFailure = true;
+bool HwFailure = true; // Assume HW failure until all init done
 
 /* Node ID */
 uint8_t node_id;
 
 /* LED Indicators */
 LEDs ledIndicators = LEDs(LED_RED, LED_GREEN);
-
+/* CLI */
+CLIScreenManager cli = CLIScreenManager();
 // Scheduler
 Scheduler scheduler = Scheduler();
 
@@ -69,6 +71,8 @@ J1939_FilteredTemperatureAndFlow CAN_TempAndFlow = J1939_FilteredTemperatureAndF
 void setup()
 {
 
+  cli.begin();
+
   /* Configure microcontroller. */
 
   bool mcp_init = false, mcp_normal = false, supply_init = false, return_init = false;
@@ -76,68 +80,66 @@ void setup()
   // Initialize Serial Monitor
   Serial.begin(115200); // This pipes to the serial monitor
 
-  while (HwFailure)
-  {
-    /* Configure microcontroller. */
-    AddInfoToLog("Configuring microcontroller...");
+  // Read node address for dip-switch
+  node_id = dip_switch_read() | NODE_ID_BASE;
 
-    // Read node address for dip-switch
-    node_id = dip_switch_read() | NODE_ID_BASE;
-    AddInfoToLog("Node ID: " + String(node_id));
-
-    // Initialize CAN-Bus
-    if ((mcp_init = (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK)))
-      if ((mcp_normal = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK)))
-      {
-        // Set up heartbeat message
-        CAN_heartbeat_msg.begin(node_id);
-        scheduler.addTask(loop_CanMessageEachSecond, 1000);
-        scheduler.addTask([](uint32_t td)
-                          {
+  // Initialize CAN-Bus
+  if ((mcp_init = (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK)))
+    if ((mcp_normal = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK)))
+    {
+      // Set up heartbeat message
+      CAN_heartbeat_msg.begin(node_id);
+      scheduler.addTask(loop_CanMessageEachSecond, 1000);
+      scheduler.addTask([](uint32_t td)
+                        {
                             uint8_t error_flags = CAN0.getError();
                             // Bus-Off when TXBO bit (transmit bus-off) is set
                             CANbusOff = (error_flags & MCP_EFLG_TXBO) != 0;
                             // Warning when any of EWARN, RXWAR, TXWAR bits set (error counters >= 96)
                             CANbusWarn = (error_flags & (MCP_EFLG_EWARN | MCP_EFLG_RXWAR | MCP_EFLG_TXWAR)) != 0; },
-                          100);
-      }
-
-    // Initialize the MAX31865
-    // Calculate value of HW failure
-    supply_init = supply_sensor.begin((float)PT100_ALPHA);
-    return_init = return_sensor.begin((float)PT100_ALPHA);
-    HwFailure = !(mcp_init && supply_init && return_init);
-    if (HwFailure)
-    {
-      AddMessageToLog("HW Failure detected", true);
-      node_status = STOP;
-      uint32_t start_time = millis();
-      while (millis() - start_time < 20000)
-      {
-        scheduler.run();
-      }
+                        100);
     }
 
-    // Initialize Flow Sensor
-    flowObj.begin([](float flow) {}); // TODO: Update energy calculation
+  // Initialize the MAX31865
+  supply_init = supply_sensor.begin((float)PT100_ALPHA);
+  return_init = return_sensor.begin((float)PT100_ALPHA);
 
-    // Initialize J1939
-    CAN_Temp_msg.begin(node_id);
-    CAN_TempAndFlow.begin(node_id);
-
-    // Trigger new reading every 1000ms
-    scheduler.addTask([](uint32_t td)
-                      {
-                        if (!supply_sensor.triggerMeasurement())
-                          ; // AddMessageToLog("Unable to read SUPPLY", false);
-                        if (!return_sensor.triggerMeasurement())
-                          ; // AddMessageToLog("Unable to read RETURN", false);
-                      },
-                      PT100_SAMPLE_RATE);
-
-    // Update node status
-    node_status = RUN;
+  if (!mcp_normal || !supply_init || !return_init)
+  {
+    node_status = STOP;
+    cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
+    while (millis() < 60000)
+    {
+      scheduler.run();
+    }
+    wdt_enable(WDTO_15MS);
+    while (1)
+      ;
   }
+
+  // Initialize Flow Sensor
+  flowObj.begin([](float flow) {}); // TODO: Update energy calculation
+
+  // Initialize J1939
+  CAN_Temp_msg.begin(node_id);
+  CAN_TempAndFlow.begin(node_id);
+
+  // Trigger new reading every 1000ms
+  scheduler.addTask([](uint32_t td)
+                    {
+                      if (!supply_sensor.triggerMeasurement())
+                        ; // AddMessageToLog("Unable to read SUPPLY", false);
+                      if (!return_sensor.triggerMeasurement())
+                        ; // AddMessageToLog("Unable to read RETURN", false);
+                    },
+                    PT100_SAMPLE_RATE);
+
+  scheduler.addTask([](uint32_t td)
+                    { cli.periodic(); },
+                    1000);
+
+  // Update node status
+  node_status = RUN;
 }
 
 void loop()
@@ -148,15 +150,12 @@ void loop()
   supply_sensor.process();
   return_sensor.process();
   flowObj.process();
+  cli.process();
   // Check if the flow is zero
   if (flowObj.isFlowing())
-  {
     node_status = RUN;
-  }
   else
-  {
     node_status = SLEEP;
-  }
   // Update LEDs
   ledIndicators.process();
 }
