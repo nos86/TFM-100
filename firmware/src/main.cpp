@@ -59,6 +59,9 @@ bool HwFailure = true;
 /* Node ID */
 uint8_t node_id;
 
+/* LED Indicators */
+LEDs ledIndicators = LEDs(LED_RED, LED_GREEN);
+
 // Scheduler
 Scheduler scheduler = Scheduler();
 
@@ -81,8 +84,6 @@ void setup()
   {
     /* Configure microcontroller. */
     AddInfoToLog("Configuring microcontroller...");
-    // Initialize LEDs
-    LEDs_init(LED_RED, LED_GREEN);
 
     // Read node address for dip-switch
     node_id = dip_switch_read() | NODE_ID_BASE;
@@ -161,5 +162,5 @@ void loop()
     node_status = SLEEP;
   }
   // Update LEDs
-  LEDs_process();
+  ledIndicators.process();
 }
