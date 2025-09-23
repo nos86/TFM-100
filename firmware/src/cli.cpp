@@ -4,6 +4,8 @@
 #include <PT100.h>
 #include <flow.h>
 #include <scheduler.h>
+#include <mcp_can.h>
+#include <MAX31865_NonBlocking.h>
 
 // External variables
 extern PT100 supply_sensor; // main.cpp
@@ -11,6 +13,7 @@ extern PT100 return_sensor; // main.cpp
 extern Flow flowObj;        // main.cpp
 extern Scheduler scheduler; // main.cpp
 extern uint8_t node_id;     // main.cpp
+extern MCP_CAN CAN0;        // main.cpp
 
 // Costruttore
 CLIScreenManager::CLIScreenManager(Stream *stream, uint16_t width, uint16_t height)
@@ -296,20 +299,64 @@ void CLIScreenManager::drawSystemInfoScreen(bool full_update)
     if (!ansi_enabled)
         return;
 
-    printHeader("TFM-100 - INFORMAZIONI SISTEMA");
-    printSeparator('=');
+    if (full_update)
+    {
+        printHeader("TFM-100 - INFORMAZIONI SISTEMA");
+        printSeparator('=');
 
+        printFooter();
+    }
     ansi->gotoXY(1, 4);
+    /* Show data for PT100 sensors */
+    MAX31865 *sensor;
+    for (uint8_t s = 0; s < 2; s++)
+    {
+        ansi->foreground(ansi->green);
+        ansi->clearLine(ansi->entireLine);
+        if (s == 0)
+        {
+            ansi->print(F("Supply"));
+            sensor = &supply_sensor.sensor;
+        }
+        else
+        {
+            ansi->print(F("Return"));
+            sensor = &return_sensor.sensor;
+        }
+        ansi->println(F(" Temperature: "));
+        ansi->normal();
+        ansi->print(F(" LOW(0x05) = "));
+        ansi->print(String(sensor->getLowerThreshold(), HEX));
+        ansi->print(" - HIGH(0x06) = ");
+        ansi->println(String(sensor->getUpperThreshold(), HEX));
+        ansi->clearLine(ansi->entireLine);
+        ansi->print(" ERR(0x07) = ");
+        ansi->println(String(sensor->getFault(), HEX));
+        ansi->clearLine(ansi->entireLine);
+        ansi->print(F(" Vbias="));
+        ansi->print(sensor->getBias() ? F("ON") : F("OFF"));
+        ansi->print(F(" - Conversion Mode="));
+        ansi->print(sensor->getConvMode() ? F("Continuous") : F("Single"));
+        ansi->print(F(" - Wires="));
+        ansi->print(sensor->getWires() ? F("3") : F("2/4"));
+        ansi->print(F(" - Filter="));
+        ansi->println(sensor->getFilter() ? F("50Hz") : F("60Hz"));
+        ansi->println();
+    }
 
-    String headers[] = {"Parametro", "Valore"};
-    String data[][2] = {
-        {"Firmware Version", String(FIRMWARE_VERSION, HEX)},
-        {"Model", "TFM-100"},
-        {"Variant", String(VARIANT, HEX)},
-        {"Node ID Base", String(NODE_ID_BASE, HEX)},
-    };
-
-    printTable(headers, data, 4, 2);
+    /* Show data for CAN Driver */
+    ansi->foreground(ansi->green);
+    ansi->clearLine(ansi->entireLine);
+    ansi->println(F("MCP25625 CAN Driver: "));
+    ansi->normal();
+    ansi->print(F(" Errors="));
+    ansi->println(CAN0.checkError() != CAN_OK ? F("YES") : F("NO"));
+    ansi->clearLine(ansi->entireLine);
+    ansi->print(F(" TEC="));
+    ansi->println(CAN0.errorCountTX());
+    ansi->clearLine(ansi->entireLine);
+    ansi->print(F(" REC="));
+    ansi->println(CAN0.errorCountRX());
 }
 
 void CLIScreenManager::drawCalibrationScreen(bool full_update, char input)
