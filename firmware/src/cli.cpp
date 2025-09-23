@@ -15,7 +15,7 @@ extern Scheduler scheduler; // main.cpp
 extern uint8_t node_id;     // main.cpp
 extern MCP_CAN CAN0;        // main.cpp
 
-// Costruttore
+// Constructor
 CLIScreenManager::CLIScreenManager(Stream *stream, uint16_t width, uint16_t height)
 {
     ansi = new ANSI(stream);
@@ -27,11 +27,11 @@ CLIScreenManager::CLIScreenManager(Stream *stream, uint16_t width, uint16_t heig
     periodic_update = false;
 }
 
-// Distruttore
+// Destructor
 CLIScreenManager::~CLIScreenManager()
 {
-    // Non delete ansi dato che non ha distruttore virtuale
-    // La memoria sarà liberata automaticamente alla fine del programma
+    // Do not delete ansi since it has no virtual destructor
+    // Memory will be freed automatically at program end
 }
 
 // Inizializzazione
