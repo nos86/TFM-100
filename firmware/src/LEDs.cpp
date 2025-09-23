@@ -3,10 +3,10 @@
  * ----------------------------------------------------------------------
  * | Behavior          | Green LED           | Red LED                   |
  * ----------------------------------------------------------------------
- * | Off               | Init                | No Error                  |
+ * | Off               | STOP                | No Error                  |
  * | Flickering (10Hz) | Setup               | Hardware Failure          |
- * | Blinking (2.5Hz)  | -                   | PT100 Reading Error       |
- * | Single Flash      | Sleep               | CAN warning               |
+ * | Blinking (2.5Hz)  | CLI connected       | PT100 Reading Error       |
+ * | Single Flash      | SLEEP               | CAN warning               |
  * | On                | RUN                 | CAN Bus Off               |
  * ----------------------------------------------------------------------
  *
@@ -33,6 +33,7 @@
 #include "LEDs.h"
 #include "flow.h"
 #include "PT100.h"
+#include "cli.h"
 #include <status.h>
 
 extern PT100 supply_sensor;      // main.cpp
@@ -41,6 +42,7 @@ extern Flow flowObj;             // main.cpp
 extern NodeStatus_t node_status; // main.cpp
 extern bool CANbusOff;           // main.cpp
 extern bool CANbusWarn;          // main.cpp
+extern CLIScreenManager cli;     // main.cpp
 
 LEDs::LEDs(uint8_t redPin, uint8_t greenPin)
 {
@@ -149,10 +151,12 @@ void LEDs::process(bool HwFailure)
         else
             rd_co = 0;
         /* green RUN LED */
-        if (0) // cli_connected)
+        if (cli.clientConnected)
+            gr_co = GenericLedStatus & LED_blink;
+        else if (node_status == RUN)
             gr_co = 1;
         else if (node_status == STOP)
-            gr_co = GenericLedStatus & LED_blink;
+            gr_co = GenericLedStatus & 0; // Always off
         else if (node_status == SLEEP)
             gr_co = GenericLedStatus & LED_flash_1;
         else if (node_status == SETUP)
