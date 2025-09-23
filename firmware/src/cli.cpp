@@ -307,10 +307,9 @@ void CLIScreenManager::drawSystemInfoScreen(bool full_update)
         {"Model", "TFM-100"},
         {"Variant", String(VARIANT, HEX)},
         {"Node ID Base", String(NODE_ID_BASE, HEX)},
-        {"Uptime", String(millis() / 1000) + " s"},
-        {"Terminal Size", String(terminal_width) + "x" + String(terminal_height)}};
+    };
 
-    printTable(headers, data, 7, 2);
+    printTable(headers, data, 4, 2);
 }
 
 void CLIScreenManager::drawCalibrationScreen(bool full_update, char input)
@@ -372,9 +371,13 @@ void CLIScreenManager::logMessage(const String &message, LogType severity)
         break;
     }
 
+    // Stampa il timestamp a 10 caratteri, padding a sinistra con zeri
+    char timestamp[11];
+    snprintf(timestamp, sizeof(timestamp), "%4lu", (uint32_t)(millis() / 1000));
+    ansi->print(timestamp);
     ansi->foreground(color);
     ansi->bold();
-    ansi->print("[");
+    ansi->print(" [");
     ansi->print(level);
     ansi->print("] ");
     ansi->normal();
