@@ -23,7 +23,10 @@ void loop_CanMessageEachSecond(uint32_t td)
   {
     CAN_heartbeat_msg.getData(data, &length);
     if (CAN0.sendMsgBuf(CAN_heartbeat_msg.messageId, length, data) != CAN_OK)
+    {
       cli.logError("Unable to send heartbeat");
+      return;
+    }
   }
 
   // Send Temperature
