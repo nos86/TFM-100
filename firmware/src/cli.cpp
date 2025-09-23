@@ -371,6 +371,8 @@ void CLIScreenManager::drawCalibrationScreen(bool full_update, char input)
 
     ansi->println("Parametri configurabili:");
     ansi->println();
+
+    printFooter();
 }
 
 void CLIScreenManager::drawLogScreen(bool full_update)
