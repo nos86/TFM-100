@@ -101,12 +101,12 @@ void CLIScreenManager::process()
             break;
         case 'd':
         case 'D':
-            next_screen = ScreenType::DIAGNOSTICS;
+            next_screen = ScreenType::SYSTEM_INFO;
             input = 0;
             break;
         case 'e':
         case 'E':
-            next_screen = ScreenType::SYSTEM_INFO;
+            next_screen = ScreenType::DIAGNOSTICS;
             input = 0;
             break;
         case 'c':
