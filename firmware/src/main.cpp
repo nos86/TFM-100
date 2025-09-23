@@ -17,7 +17,6 @@
 
 // MyLib
 #include <scheduler.h>
-#include <logger.h>
 #include <LEDs.h>
 #include <PT100.h>
 #include <j1939.h>
@@ -130,10 +129,9 @@ void setup()
   scheduler.addTask([](uint32_t td)
                     {
                       if (!supply_sensor.triggerMeasurement())
-                        ; // AddMessageToLog("Unable to read SUPPLY", false);
+                        cli.logError("Unable to read SUPPLY");
                       if (!return_sensor.triggerMeasurement())
-                        ; // AddMessageToLog("Unable to read RETURN", false);
-                    },
+                        cli.logError("Unable to read RETURN"); },
                     PT100_SAMPLE_RATE);
 
   scheduler.addTask([](uint32_t td)

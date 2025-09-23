@@ -111,6 +111,11 @@ void CLIScreenManager::process()
             next_screen = ScreenType::CALIBRATION;
             input = 0;
             break;
+        case 'l':
+        case 'L':
+            next_screen = ScreenType::LOG;
+            input = 0;
+            break;
         default:
             break;
         }
@@ -140,6 +145,9 @@ void CLIScreenManager::process()
             break;
         case ScreenType::CALIBRATION:
             drawCalibrationScreen(input);
+            break;
+        case ScreenType::LOG:
+            drawLogScreen(full_update);
             break;
         }
         next_screen = ScreenType::NONE;
@@ -317,6 +325,62 @@ void CLIScreenManager::drawCalibrationScreen(bool full_update, char input)
 
     ansi->println("Parametri configurabili:");
     ansi->println();
+}
+
+void CLIScreenManager::drawLogScreen(bool full_update)
+{
+    if (!ansi_enabled || !full_update)
+        return;
+
+    printHeader(F("TFM-100 - LOG EVENTI"));
+    printSeparator('=');
+
+    logRow = 0;
+
+    printFooter();
+}
+
+void CLIScreenManager::logMessage(const String &message, LogType severity)
+{
+    uint8_t available_rows = terminal_height - 5;
+    if (!ansi_enabled || last_screen != ScreenType::LOG)
+        return;
+
+    if (++logRow > available_rows)
+        logRow = 1;
+
+    ansi->gotoXY(1, 2 + logRow);
+    uint8_t color = ansi->white;
+    String level;
+    switch (severity)
+    {
+    case LogType::INFO:
+        color = ansi->cyan;
+        level = "INFO";
+        break;
+    case LogType::WARNING:
+        color = ansi->yellow;
+        level = "WARNING";
+        break;
+    case LogType::ERROR:
+        color = ansi->red;
+        level = "ERROR";
+        break;
+    case LogType::SUCCESS:
+        color = ansi->green;
+        level = "SUCCESS";
+        break;
+    }
+
+    ansi->foreground(color);
+    ansi->bold();
+    ansi->print("[");
+    ansi->print(level);
+    ansi->print("] ");
+    ansi->normal();
+    ansi->println(message);
+    if (logRow < available_rows)
+        ansi->clearLine(ansi->entireLine);
 }
 
 // Metodi di utilità per la formattazione
@@ -523,5 +587,5 @@ void CLIScreenManager::printFooter(bool failure)
     }
     else
         // Istruzioni di navigazione
-        ansi->print(F("Navigazione: Valori (V) | Device (D) | Errori (E) | Calibrazione (C)"));
+        ansi->print(F("Navigazione: Valori (V) | Device (D) | Errori (E) | Calibrazione (C) | Log (L)"));
 }
