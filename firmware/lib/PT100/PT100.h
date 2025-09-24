@@ -7,12 +7,12 @@
 class PT100
 {
 private:
-    MAX31865 sensor;
     bool measurementRunning;
     float alpha;
     bool filterInitialized;
 
 public:
+    MAX31865 sensor;
     PT100(int csPin);
     bool begin();
     bool begin(float alpha);
