@@ -1,29 +1,35 @@
-/*
- * CANopen LED Behavior
- * ----------------------------------------------------------------------
- * | Behavior          | Green LED           | Red LED                   |
- * ----------------------------------------------------------------------
- * | Off               | STOP                | No Error                  |
- * | Flickering (10Hz) | Setup               | Hardware Failure          |
- * | Blinking (2.5Hz)  | CLI connected       | PT100 Reading Error       |
- * | Single Flash      | SLEEP               | CAN warning               |
- * | On                | RUN                 | CAN Bus Off               |
- * ----------------------------------------------------------------------
+/**
+ * @file LEDs.cpp
+ * @brief Implementation of the LED indicator state machine.
  *
- * Flashing is implemented as following:
- * - 200ms on
- * - 200ms off (except for the last flash)
- * - 200ms on (except for the last flash)
- * - 1000ms off
+ * The LEDs module implements a small non-blocking state machine used to
+ * indicate node status and error conditions. The green LED reports node
+ * state (RUN/STOP/SLEEP/SETUP/CLI) while the red LED reports error conditions
+ * (HW failure, CAN warnings/off, PT100 errors).
+ *
+ * Patterns summary:
+ * - Flicker (10Hz): implemented by toggling a bit every 50ms (faster 'flicker')
+ * - Blink (2.5Hz): toggled every 200ms group (200ms ON/OFF pattern)
+ * - Flash sequences (single/double/triple/quad): built from 200ms ticks
+ *   using counters that set/clear flash bits at specific steps. After the
+ *   sequence the pattern waits ~1000ms before repeating.
+ *
+ * Timing details:
+ * - The core loop accumulates millis() deltas into `LEDtmr50ms` and consumes
+ *   50ms quanta. Every 50ms we toggle the 10Hz flicker bit. Every 4 * 50ms =
+ *   200ms we update blink and flash counters.
  */
 
 /**
  * @defgroup LED_bitmasks LED bitmasks
  * @{
- * Bitmasks for the LED indicators
+ * Bitmasks used in `GenericLedStatus` to represent active visual patterns.
+ * - LED_flicker: 10Hz toggling used for quick 'setup' feedback.
+ * - LED_blink: 2.5Hz blink used for CLI/reading error indications.
+ * - LED_flash_n: sequence bits used by single/double/triple/quadruple flash.
  */
 #define LED_flicker 0x01U /**< LED flickering 10Hz */
-#define LED_blink 0x02U   /**< LED blinking 2,5Hz */
+#define LED_blink 0x02U   /**< LED blinking 2.5Hz */
 #define LED_flash_1 0x04U /**< LED single flash */
 #define LED_flash_2 0x08U /**< LED double flash */
 #define LED_flash_3 0x10U /**< LED triple flash */
@@ -46,6 +52,8 @@ extern CLIScreenManager cli;     // main.cpp
 
 LEDs::LEDs(uint8_t redPin, uint8_t greenPin)
 {
+    // Store pins and configure as outputs. LEDs are active-low on this board
+    // (driven LOW to turn on), so initialize them HIGH (off).
     LedRedPin = redPin;
     LedGreenPin = greenPin;
     pinMode(redPin, OUTPUT);
@@ -56,8 +64,12 @@ LEDs::LEDs(uint8_t redPin, uint8_t greenPin)
 
 void LEDs::process(bool HwFailure)
 {
+    // ``tick`` becomes true when at least one 50ms quantum has been processed.
     bool tick = false;
 
+    // Accumulate elapsed milliseconds and consume 50ms quanta. This allows
+    // the function to be called at arbitrary intervals while keeping timing
+    // stable.
     LEDtmr50ms += (millis() - last_millis);
     last_millis = millis();
     while (LEDtmr50ms >= 50)
@@ -65,17 +77,18 @@ void LEDs::process(bool HwFailure)
         tick = true;
         LEDtmr50ms -= 50;
 
-        /* calculate 10Hz flickering */
+        /* 10Hz flicker: toggle every 50ms */
         GenericLedStatus ^= LED_flicker;
 
-        /* calculate 200ms events */
+        /* 200ms group: update blink/flash counters every 4 * 50ms */
         if (++LEDtmr200ms > 3)
         {
             LEDtmr200ms = 0;
-            /* calculate 2,5Hz blinking */
+            /* 2.5Hz blink: toggle every 200ms */
             GenericLedStatus ^= LED_blink;
 
-            /* calculate Single Flashing */
+            /* Single flash sequence: sets LED_flash_1 on the first 200ms
+               step, clears it on subsequent steps and resets after 6 steps. */
             switch (++LEDtmrflash_1)
             {
             case 1:
@@ -88,7 +101,7 @@ void LEDs::process(bool HwFailure)
                 break;
             }
 
-            /* calculate Double Flashing */
+            /* Double flash: on at steps 1 and 3, reset after 8 steps */
             switch (++LEDtmrflash_2)
             {
             case 1:
@@ -102,7 +115,7 @@ void LEDs::process(bool HwFailure)
                 break;
             }
 
-            /* calculate Triple Flashing */
+            /* Triple flash: on at steps 1,3,5, reset after 10 steps */
             switch (++LEDtmrflash_3)
             {
             case 1:
@@ -117,7 +130,7 @@ void LEDs::process(bool HwFailure)
                 break;
             }
 
-            /* calculate Quadruple Flashing */
+            /* Quadruple flash: on at steps 1,3,5,7, reset after 12 steps */
             switch (++LEDtmrflash_4)
             {
             case 1:
@@ -139,7 +152,14 @@ void LEDs::process(bool HwFailure)
     if (tick)
     {
         uint8_t rd_co, gr_co;
-        /* red ERROR LED */
+
+        /* Decide red LED (error) output bit:
+         * - Hardware failure: use fast flicker
+         * - CAN bus off: solid ON
+         * - CAN warning: single flash pattern
+         * - PT100 sensor error: blink pattern
+         * - otherwise off
+         */
         if (HwFailure)
             rd_co = GenericLedStatus & LED_flicker;
         else if (CANbusOff)
@@ -150,7 +170,14 @@ void LEDs::process(bool HwFailure)
             rd_co = GenericLedStatus & LED_blink;
         else
             rd_co = 0;
-        /* green RUN LED */
+
+        /* Decide green LED (status) output bit:
+         * - CLI connected: show 2.5Hz blink
+         * - RUN: solid ON
+         * - STOP: always off
+         * - SLEEP: single flash pattern
+         * - SETUP: inverted flicker (visible pattern)
+         */
         if (cli.clientConnected)
             gr_co = GenericLedStatus & LED_blink;
         else if (node_status == RUN)
@@ -166,7 +193,7 @@ void LEDs::process(bool HwFailure)
         else
             gr_co = 0;
 
-        // Set the LEDs
+        // LEDs are active-low: write LOW to turn LED ON
         if (rd_co)
             digitalWrite(LedRedPin, LOW);
         else
