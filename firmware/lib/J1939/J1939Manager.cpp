@@ -371,10 +371,10 @@ void J1939Manager::releaseCurrent(bool success)
         // For single-frame messages, all bytes were consumed. For multi-frame
         // messages, (sequence_counter - 1) DT frames were sent (each up to 7 bytes)
         // unless sequence_counter==0 which indicates completion.
-       // If the transfer completed normally the pool bytes for
+        // If the transfer completed normally the pool bytes for
         // this descriptor are already fully consumed; otherwise remove the
         // remaining bytes (if any) to keep pool state consistent.
-        
+
         // For single-frame messages, all bytes were consumed
         // For multi-frame messages, (sequence_counter - 1) DT frames were sent (each up to 7 bytes)
 
@@ -432,7 +432,7 @@ void J1939Manager::processRegisteredMessages(uint16_t now_ms)
 uint32_t J1939Manager::buildCanId(uint8_t prio, uint32_t pgn, uint8_t sa)
 {
     uint32_t can_id = 0;
-    // J1939 29-bit identifier layout: priority (3b) | reserved/data (??) | PGN (18b) | SA (8b)
+    // J1939 29-bit identifier layout: priority (3b) | reserved/data (1b) | PGN (18b) | SA (8b)
     // We place priority in bits 26..28, PGN in bits 8..31 (shifted) and SA in low byte.
     can_id |= ((uint32_t)(prio & 0x07) << 26);
     can_id |= (pgn << 8);
