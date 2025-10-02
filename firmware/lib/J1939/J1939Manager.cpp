@@ -20,6 +20,7 @@ J1939Manager::J1939Manager(ICanDriver &driver, const J1939Callbacks &cb)
     q_tail_ = 0;
     q_count_ = 0;
     sequence_counter = 0;
+    current_consumed_ = 0;
     last_error_ = J1939TxError::NONE;
     last_tp_tx_ms_ = 0;
 
@@ -191,6 +192,7 @@ void J1939Manager::startNext(uint16_t now_ms)
 
     // Reset sequence counter to indicate fresh transmission for head descriptor
     sequence_counter = 0;
+    current_consumed_ = 0;
 
     // For single-frame messages, we can optionally trigger on_start immediately
     J1939Descriptor &desc = queue_[q_head_];
@@ -234,7 +236,10 @@ void J1939Manager::processCurrent(uint16_t now_ms)
         {
             // COPY mode: payload bytes were previously copied into the pool in FIFO order
             for (uint8_t i = 0; i < desc.len; i++)
+            {
                 scratch_[i] = pool_.dequeue();
+                current_consumed_++;
+            }
         }
 
         // Send single-frame payload
@@ -298,7 +303,10 @@ void J1939Manager::processCurrent(uint16_t now_ms)
             {
                 // COPY mode: dequeue bytes previously copied into the pool
                 for (uint8_t i = 0; i < bytes_to_send; i++)
+                {
                     scratch_[i + 1] = pool_.dequeue();
+                    current_consumed_++;
+                }
             }
 
             // Check for final frame
@@ -372,6 +380,10 @@ void J1939Manager::releaseCurrent(bool success)
         // For single-frame messages, all bytes were consumed. For multi-frame
         // messages, (sequence_counter - 1) DT frames were sent (each up to 7 bytes)
         // unless sequence_counter==0 which indicates completion.
+        // Use current_consumed_ to know how many bytes have already been removed
+        // from the pool. If the transfer completed normally the pool bytes for
+        // this descriptor are already fully consumed; otherwise remove the
+        // remaining bytes (if any) to keep pool state consistent.
         uint16_t consumed = 0;
         if (desc.len <= 8)
         {
@@ -379,18 +391,23 @@ void J1939Manager::releaseCurrent(bool success)
         }
         else
         {
-            if (sequence_counter == 0)
-                consumed = desc.len; // final frame was sent and consumed remaining bytes
+            // If sequence_counter==0 and success then final frame was sent and
+            // all bytes were already dequeued. Otherwise current_consumed_ holds
+            // how many bytes were actually dequeued so far.
+            if (sequence_counter == 0 && success)
+                consumed = desc.len;
             else
-                consumed = (sequence_counter - 1) * 7;
+                consumed = current_consumed_;
             if (consumed > desc.len)
                 consumed = desc.len;
         }
 
-        // Remove any remaining bytes for this descriptor from the pool to keep pool state consistent
         uint16_t remaining_bytes = (desc.len > consumed) ? (desc.len - consumed) : 0;
         for (uint16_t i = 0; i < remaining_bytes; i++)
             pool_.dequeue();
+
+        // Reset tracking for next descriptor
+        current_consumed_ = 0;
     }
 
     // Advance the queue to remove the current descriptor

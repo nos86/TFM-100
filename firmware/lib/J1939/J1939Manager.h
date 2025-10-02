@@ -265,6 +265,10 @@ private:
   uint8_t q_count_;
   uint8_t sequence_counter;
 
+  // Number of bytes already consumed from the pool for the active descriptor
+  // (used to correctly cleanup the pool when a transfer is aborted).
+  uint16_t current_consumed_;
+
   // Buffer for CAN Frame
   uint8_t scratch_[8];
 
