@@ -62,7 +62,7 @@ uint8_t *HeartbeatMessage::buildPayload(uint8_t *len)
    * - byte 1: firmware version (8-bit)
    * - byte 2: variant (high nibble) + node state (low nibble)
    * - byte 3: reserved
-   * - bytes 4..7: 32-bit uptime (little-endian)
+   * - bytes 4..7: 32-bit uptime (big-endian)
    *
    * Lifetime: currently returns a heap-allocated buffer (new[]). Prefer a
    * static buffer because the manager copies payloads for messages that
@@ -72,7 +72,6 @@ uint8_t *HeartbeatMessage::buildPayload(uint8_t *len)
   *len = 8;
   uint8_t *data = new uint8_t[8];
   data[0] = (uint8_t)(MODEL & 0xFF);
-  data[1] = (uint8_t)(FIRMWARE_VERSION & 0xFF);
   data[1] = (uint8_t)(FIRMWARE_VERSION & 0xFF);
   data[2] = (uint8_t)((VARIANT & 0x0F) << 4);
   switch (node_status)
@@ -107,9 +106,9 @@ uint8_t *CAN_FilteredTemperatureAndFlow::buildPayload(uint8_t *len)
   }
   /*
    * Filtered temperature + flow payload (6 bytes):
-   * - bytes 0..1: supply temperature in centi-degrees (uint16_t, little-endian)
-   * - bytes 2..3: return temperature in centi-degrees (uint16_t, little-endian)
-   * - bytes 4..5: flow (uint16_t, little-endian)
+   * - bytes 0..1: supply temperature in centi-degrees (uint16_t, big-endian)
+   * - bytes 2..3: return temperature in centi-degrees (uint16_t, big-endian)
+   * - bytes 4..5: flow (uint16_t, big-endian)
    *
    * Conversion: multiply sensor floats by 100, round, then clamp to uint16_t.
    * Lifetime: returns heap-allocated buffer; prefer a static buffer instead.
@@ -144,8 +143,8 @@ uint8_t *CAN_Temperature::buildPayload(uint8_t *len)
   }
   /*
    * Raw temperature payload (4 bytes):
-   * - bytes 0..1: supply temperature in centi-degrees (uint16_t, little-endian)
-   * - bytes 2..3: return temperature in centi-degrees (uint16_t, little-endian)
+   * - bytes 0..1: supply temperature in centi-degrees (uint16_t, big-endian)
+   * - bytes 2..3: return temperature in centi-degrees (uint16_t, big-endian)
    *
    * Use rounding and clamp to uint16_t to avoid overflow.
    */
