@@ -279,6 +279,11 @@ void J1939Manager::processCurrent(uint16_t now_ms)
             }
             is_final_frame = false;
         }
+        else if ((uint16_t)(now_ms - last_tp_tx_ms_) < J1939Config::GAP_DT_MS)
+        { // Enforce inter-frame gap between DT frames
+            // Not enough time has passed; try again later without consuming sequence_counter
+            return;
+        }
         else
         {
             // Prepare a Data Transfer (DT) frame: 1 byte sequence + up to 7 data bytes
@@ -308,29 +313,21 @@ void J1939Manager::processCurrent(uint16_t now_ms)
             // Check for final frame
             is_final_frame = (data_offset + bytes_to_send >= desc.len);
 
-            // Enforce inter-frame gap between DT frames
-            if ((uint16_t)(now_ms - last_tp_tx_ms_) < J1939Config::GAP_DT_MS)
-            {
-                // Not enough time has passed; try again later without consuming sequence_counter
-                return;
-            }
-
             // Send DT
             transmission_success = can_.sendExtendedFrame(can_id, scratch_, len_frame);
 
             if (transmission_success)
             {
+                last_tp_tx_ms_ = now_ms;
                 if (is_final_frame)
                 {
                     // Completed transfer: sequence_counter reset, cleanup in releaseCurrent
                     sequence_counter = 0;
-                    last_tp_tx_ms_ = now_ms;
                 }
                 else
                 {
                     // Move to next sequence and record time for pacing
                     sequence_counter++;
-                    last_tp_tx_ms_ = now_ms;
                     if (cb_.on_progress)
                         cb_.on_progress(desc);
                 }
