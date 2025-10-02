@@ -194,12 +194,14 @@ void J1939Manager::startNext(uint16_t now_ms)
 
     // For single-frame messages, we can optionally trigger on_start immediately
     J1939Descriptor &desc = queue_[q_head_];
-    if (desc.len <= 8)
+    // If LOCKED mode is used, lock the source buffer now so that the subsequent
+    // call to processCurrent() can safely read from it without duplicating lock()
+    if (desc.src)
     {
-        // Single-frame messages will be attempted immediately by processCurrent().
-        if (cb_.on_start)
-            cb_.on_start(desc);
+        desc.src->lock();
     }
+    if (cb_.on_start)
+        cb_.on_start(desc);
 }
 
 void J1939Manager::processCurrent(uint16_t now_ms)
@@ -224,9 +226,8 @@ void J1939Manager::processCurrent(uint16_t now_ms)
 
         if (desc.src)
         {
-            // LOCKED mode: read directly from the provided buffer (must lock first)
-            // Note: lock() may be a no-op for some implementations but is required by interface
-            desc.src->lock();
+            // LOCKED mode: read directly from the provided buffer. The buffer is
+            // locked in startNext()
             for (uint8_t i = 0; i < desc.len; i++)
                 scratch_[i] = desc.src->data()[i];
         }
@@ -253,9 +254,8 @@ void J1939Manager::processCurrent(uint16_t now_ms)
             can_id = buildCanId(6, 0xEC00, sa_); // BAM uses PGN 0xEC00 and priority 6
             len_frame = 8;
 
-            // Lock the source buffer in LOCKED mode for the whole transfer
-            if (desc.src)
-                desc.src->lock();
+            // The source buffer (if any) was locked by startNext() prior to
+            // beginning the multi-frame transfer.
 
             // Fill BAM CM fields: control byte, total size, packets count and PGN
             scratch_[0] = 0x20;                    // BAM control byte
@@ -274,8 +274,6 @@ void J1939Manager::processCurrent(uint16_t now_ms)
                 // Start sending DT frames from sequence 1
                 sequence_counter = 1;
                 last_tp_tx_ms_ = now_ms; // Pace DT frames relative to BAM
-                if (cb_.on_start)
-                    cb_.on_start(desc);
             }
             is_final_frame = false;
         }
