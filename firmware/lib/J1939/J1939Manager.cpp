@@ -31,7 +31,7 @@ J1939Manager::J1939Manager(ICanDriver &driver, const J1939Callbacks &cb)
 
     for (int i = 0; i < 8; i++)
     {
-        scratch_[i] = 0;
+        frame_payload_[i] = 0;
     }
 }
 
@@ -223,25 +223,9 @@ void J1939Manager::processCurrent(uint16_t now_ms)
         // Build CAN id and copy payload into scratch buffer
         can_id = buildCanId(desc.prio, desc.pgn, sa_);
         len_frame = desc.len;
-
-        if (desc.src)
-        {
-            // LOCKED mode: read directly from the provided buffer. The buffer is
-            // locked in startNext()
-            for (uint8_t i = 0; i < desc.len; i++)
-                scratch_[i] = desc.src->data()[i];
-        }
-        else
-        {
-            // COPY mode: payload bytes were previously copied into the pool in FIFO order
-            for (uint8_t i = 0; i < desc.len; i++)
-            {
-                scratch_[i] = pool_.dequeue();
-            }
-        }
-
-        // Send single-frame payload
-        transmission_success = can_.sendExtendedFrame(can_id, scratch_, len_frame);
+        // fill entire scratch from offset 0
+        fillFramePayload(desc, 0, 0, len_frame);
+        transmission_success = can_.sendExtendedFrame(can_id, frame_payload_, len_frame);
         is_final_frame = true; // Single frames finish in one shot
         sequence_counter = 0;  // Reset sequence counter
     }
@@ -258,17 +242,16 @@ void J1939Manager::processCurrent(uint16_t now_ms)
             // beginning the multi-frame transfer.
 
             // Fill BAM CM fields: control byte, total size, packets count and PGN
-            scratch_[0] = 0x20;                    // BAM control byte
-            scratch_[1] = desc.len & 0xFF;         // Total message size LSB
-            scratch_[2] = (desc.len >> 8) & 0xFF;  // Total message size MSB
-            scratch_[3] = (desc.len + 6) / 7;      // Number of DT packets (7 bytes/data each)
-            scratch_[4] = 0xFF;                    // Reserved
-            scratch_[5] = desc.pgn & 0xFF;         // PGN LSB
-            scratch_[6] = (desc.pgn >> 8) & 0xFF;  // PGN middle byte
-            scratch_[7] = (desc.pgn >> 16) & 0xFF; // PGN MSB
+            frame_payload_[0] = 0x20;                    // BAM control byte
+            frame_payload_[1] = desc.len & 0xFF;         // Total message size LSB
+            frame_payload_[2] = (desc.len >> 8) & 0xFF;  // Total message size MSB
+            frame_payload_[3] = (desc.len + 6) / 7;      // Number of DT packets (7 bytes/data each)
+            frame_payload_[4] = 0xFF;                    // Reserved
+            frame_payload_[5] = desc.pgn & 0xFF;         // PGN LSB
+            frame_payload_[6] = (desc.pgn >> 8) & 0xFF;  // PGN middle byte
+            frame_payload_[7] = (desc.pgn >> 16) & 0xFF; // PGN MSB
 
-            transmission_success = can_.sendExtendedFrame(can_id, scratch_, len_frame);
-
+            transmission_success = can_.sendExtendedFrame(can_id, frame_payload_, len_frame);
             if (transmission_success)
             {
                 // Start sending DT frames from sequence 1
@@ -278,42 +261,24 @@ void J1939Manager::processCurrent(uint16_t now_ms)
             is_final_frame = false;
         }
         else if ((uint16_t)(now_ms - last_tp_tx_ms_) < J1939Config::GAP_DT_MS)
-        { // Enforce inter-frame gap between DT frames
-            // Not enough time has passed; try again later without consuming sequence_counter
-            return;
+        {
+            return; // pacing
         }
         else
         {
             // Prepare a Data Transfer (DT) frame: 1 byte sequence + up to 7 data bytes
-            can_id = buildCanId(6, 0xEB00, sa_); // DT uses PGN 0xEB00 and priority 6
-            scratch_[0] = sequence_counter;      // Sequence number (1-based)
+            can_id = buildCanId(6, 0xEB00, sa_);  // DT uses PGN 0xEB00 and priority 6
+            frame_payload_[0] = sequence_counter; // Sequence number (1-based)
 
             // Compute offset and how many bytes to send this DT
             uint16_t data_offset = (sequence_counter - 1) * 7;
             uint8_t bytes_to_send = min(desc.len - data_offset, 7);
-            len_frame = bytes_to_send + 1; // +1 for sequence number
-
-            if (desc.src)
-            {
-                // LOCKED mode: copy directly from the locked buffer
-                for (uint8_t i = 0; i < bytes_to_send; i++)
-                    scratch_[i + 1] = desc.src->data()[data_offset + i];
-            }
-            else
-            {
-                // COPY mode: dequeue bytes previously copied into the pool
-                for (uint8_t i = 0; i < bytes_to_send; i++)
-                {
-                    scratch_[i + 1] = pool_.dequeue();
-                }
-            }
-
-            // Check for final frame
+            len_frame = bytes_to_send + 1;
+            fillFramePayload(desc, 1, data_offset, bytes_to_send);
             is_final_frame = (data_offset + bytes_to_send >= desc.len);
 
             // Send DT
-            transmission_success = can_.sendExtendedFrame(can_id, scratch_, len_frame);
-
+            transmission_success = can_.sendExtendedFrame(can_id, frame_payload_, len_frame);
             if (transmission_success)
             {
                 last_tp_tx_ms_ = now_ms;
@@ -348,6 +313,22 @@ void J1939Manager::processCurrent(uint16_t now_ms)
         last_error_ = J1939TxError::CAN_SEND_FAIL;
         // On failure release/cleanup current descriptor (releaseCurrent will deduce consumed bytes)
         releaseCurrent(false);
+    }
+}
+
+// Fill scratch_ buffer from descriptor source or pool.
+void J1939Manager::fillFramePayload(J1939Descriptor &desc, uint8_t destIndex, uint16_t data_offset, uint8_t count)
+{
+    if (desc.src)
+    {
+        const uint8_t *srcdata = desc.src->data();
+        for (uint8_t i = 0; i < count; i++)
+            frame_payload_[destIndex + i] = srcdata[data_offset + i];
+    }
+    else
+    {
+        for (uint8_t i = 0; i < count; i++)
+            frame_payload_[destIndex + i] = pool_.dequeue();
     }
 }
 

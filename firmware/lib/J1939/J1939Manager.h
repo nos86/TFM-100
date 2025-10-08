@@ -78,7 +78,7 @@ enum class J1939MsgState : uint8_t
 struct J1939Descriptor
 {
   uint32_t pgn;         /**< Application PGN */
-  uint16_t len;         /**< Payload length */
+  uint8_t len;          /**< Payload length */
   ILockableBuffer *src; /**< Locked source (LOCKED mode) or nullptr for COPY mode */
   uint8_t prio;         /**< Priority (0..7) */
 };
@@ -266,7 +266,7 @@ private:
   uint8_t sequence_counter;
 
   // Buffer for CAN Frame
-  uint8_t scratch_[8];
+  uint8_t frame_payload_[8];
 
   // Current state
   J1939TxError last_error_;
@@ -282,6 +282,12 @@ private:
   bool enqueueDescriptor(J1939Descriptor &desc);
   void startNext(uint16_t now_ms);
   void processCurrent(uint16_t now_ms);
+  // Helper to fill the internal scratch buffer from a descriptor. If the
+  // descriptor uses LOCKED mode the data is copied from the provided buffer;
+  // otherwise bytes are dequeued from the internal pool. `destIndex` is the
+  // offset inside `scratch_` where data should be written (e.g. 0 for single
+  // frame, 1 for TP.DT frames where byte 0 is sequence number).
+  void fillFramePayload(J1939Descriptor &desc, uint8_t destIndex, uint16_t data_offset, uint8_t count);
   void releaseCurrent(bool success = true);
   void processRegisteredMessages(uint16_t now_ms);
   uint32_t buildCanId(uint8_t prio, uint32_t pgn, uint8_t sa);
