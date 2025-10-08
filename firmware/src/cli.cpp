@@ -250,8 +250,8 @@ bool CLIScreenManager::drawHardwareFailure(bool mcp_init, bool mcp_normal, bool 
 
     if (ansi->available() > 0)
     {
-        char inputStr = ansi->read();
-        if (inputStr == 'r' || inputStr == 'R')
+        char inputChar = ansi->read();
+        if (inputChar == 'r' || inputChar == 'R')
         {
             return true; // Request reboot
         }
@@ -571,7 +571,7 @@ void CLIScreenManager::printProgressBar(uint8_t progress, uint8_t width, const _
     if (!ansi_enabled)
         return;
 
-    if (label != nullptr)
+    if (label)
     {
         ansi->print(label);
         ansi->print(": ");
