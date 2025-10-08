@@ -38,12 +38,13 @@ private:
     float power, power_percentage, energy_24h, energy_total;
 
     // Metodi privati per la formattazione
-    void printHeader(const String &title, uint8_t background = 255, uint8_t foreground = 255);
+    void printHeader(const __FlashStringHelper *title, uint8_t background = 255, uint8_t foreground = 255);
     void printFooter(bool failure = false);
     void printSeparator(char character = '-');
-    void printCenteredText(const String &text);
+    void printCenteredText(const __FlashStringHelper *text);
     void clearArea(uint8_t start_row, uint8_t end_row);
-    void logMessage(const String &message, LogType severity = LogType::INFO);
+    void logMessage(const __FlashStringHelper *message, LogType severity = LogType::INFO);
+    void logMessage(const char *message, LogType severity = LogType::INFO);
 
 public:
     // Costruttore
@@ -74,16 +75,22 @@ public:
     void drawCalibrationScreen(bool full_update = true, char input = 0);
     void drawLogScreen(bool full_update = true);
 
-    inline void logInfo(const String &message) { logMessage(message, LogType::INFO); }
-    inline void logWarning(const String &message) { logMessage(message, LogType::WARNING); }
-    inline void logError(const String &message) { logMessage(message, LogType::ERROR); }
-    inline void logSuccess(const String &message) { logMessage(message, LogType::SUCCESS); }
+    inline void logInfo(const __FlashStringHelper *message) { logMessage(message, LogType::INFO); }
+    inline void logWarning(const __FlashStringHelper *message) { logMessage(message, LogType::WARNING); }
+    inline void logError(const __FlashStringHelper *message) { logMessage(message, LogType::ERROR); }
+    inline void logSuccess(const __FlashStringHelper *message) { logMessage(message, LogType::SUCCESS); }
+
+    // Overload per compatibilità con stringhe C normali
+    void logInfo(const char *message);
+    void logWarning(const char *message);
+    void logError(const char *message);
+    void logSuccess(const char *message);
 
     // Metodi di utilità per la formattazione
-    void printColoredText(const String &text, uint8_t color, bool newline = true);
-    void printProgressBar(uint8_t progress, uint8_t width = 50, const String &label = "");
-    void printTable(const String headers[], const String data[][2], uint8_t rows, uint8_t cols);
-    void printStatusIndicator(const String &label, bool status, const String &ok_text = "OK", const String &error_text = "ERROR");
+    void printColoredText(const __FlashStringHelper *text, uint8_t color, bool newline = true);
+    void printProgressBar(uint8_t progress, uint8_t width = 50, const __FlashStringHelper *label = nullptr);
+    void printTable(const __FlashStringHelper *headers[], const __FlashStringHelper *data[][2], uint8_t rows, uint8_t cols);
+    void printStatusIndicator(const __FlashStringHelper *label, bool status, const __FlashStringHelper *ok_text = nullptr, const __FlashStringHelper *error_text = nullptr);
 
     // Accesso diretto alla libreria ANSI per funzioni avanzate
     ANSI *getANSI() { return ansi; }
