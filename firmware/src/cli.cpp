@@ -15,6 +15,48 @@ extern Scheduler scheduler; // main.cpp
 extern uint8_t node_id;     // main.cpp
 extern MCP_CAN CAN0;        // main.cpp
 
+/**
+ * @brief Converts a float to string with specified decimals, minimal RAM usage.
+ * @param buf Output buffer (must be large enough)
+ * @param f Float value to convert
+ * @param decimals Number of decimal places
+ * @return None
+ * @remarks Uses integer math, no heap, buffer must be at least 12 bytes for 2 decimals.
+ */
+void ftostr(char *buf, float f, int decimals)
+{
+    int32_t mult = 1;
+    for (int i = 0; i < decimals; ++i)
+        mult *= 10;
+    int32_t value = (int32_t)(f * mult + (f < 0 ? -0.5f : 0.5f));
+    int32_t int_part = value / mult;
+    int32_t frac_part = abs(value % mult);
+
+    // Print integer part
+    char *p = buf;
+    if (int_part < 0)
+    {
+        *p++ = '-';
+        int_part = -int_part;
+    }
+    itoa(int_part, p, 10);
+    while (*p)
+        ++p;
+
+    // Print decimal part
+    if (decimals > 0)
+    {
+        *p++ = '.';
+        int pow10 = mult / 10;
+        for (int i = 0; i < decimals; ++i)
+        {
+            *p++ = '0' + (frac_part / pow10) % 10;
+            pow10 /= 10;
+        }
+    }
+    *p = '\0';
+}
+
 // Constructor
 CLIScreenManager::CLIScreenManager(Stream *stream, uint16_t width, uint16_t height)
 {
@@ -160,12 +202,13 @@ void CLIScreenManager::process()
 
 // Metodi privati per la formattazione
 
-void CLIScreenManager::printCenteredText(const String &text)
+void CLIScreenManager::printCenteredText(const __FlashStringHelper *text)
 {
     if (!ansi_enabled)
         return;
 
-    uint8_t padding = (terminal_width - text.length()) / 2;
+    uint8_t text_length = strlen_P((const char *)text);
+    uint8_t padding = (terminal_width - text_length) / 2;
     for (uint8_t i = 0; i < padding; i++)
     {
         ansi->print(" ");
@@ -188,7 +231,7 @@ bool CLIScreenManager::drawHardwareFailure(bool mcp_init, bool mcp_normal, bool 
         clientConnected = true;
         ansi->cursorHide();
 
-        printHeader("TFM-100 - HARDWARE FAILURE", ansi->red);
+        printHeader(F("TFM-100 - HARDWARE FAILURE"), ansi->red);
         printSeparator('-');
 
         ansi->gotoXY(1, 4);
@@ -207,10 +250,11 @@ bool CLIScreenManager::drawHardwareFailure(bool mcp_init, bool mcp_normal, bool 
 
     if (ansi->available() > 0)
     {
-        String inputStr = String((char)ansi->read());
-        inputStr.toLowerCase();
-        if (inputStr.equals("r"))
-            return true;
+        char inputStr = ansi->read();
+        if (inputStr == 'r' || inputStr == 'R')
+        {
+            return true; // Request reboot
+        }
     }
     return false;
 }
@@ -260,27 +304,43 @@ void CLIScreenManager::drawRealTimeSignals(bool full_update)
         printFooter();
     }
     // Update values
+    char buf[20];
     float hours = (float)scheduler.getUptime() / 3600.0;
     ansi->gotoXY(22, 5);
     ansi->foreground(ansi->green);
-    ansi->print(String(supply_sensor.last_temperature, 1) + " °C   ");
+    ftostr(buf, supply_sensor.last_temperature, 1);
+    ansi->print(buf);
+    ansi->print(" °C   ");
     ansi->gotoXY(22, 6);
-    ansi->print(String(return_sensor.last_temperature, 1) + " °C   ");
+    ansi->foreground(ansi->green);
+    ftostr(buf, return_sensor.last_temperature, 1);
+    ansi->print(buf);
+    ansi->print(" °C   ");
     ansi->gotoXY(9, 7);
-    ansi->print(String(flowObj.getFlow()) + " l/h   ");
+    ansi->foreground(ansi->green);
+    ansi->print(flowObj.getFlow());
+    ansi->print(" l/h   ");
     ansi->normal();
     ansi->bold();
     ansi->gotoXY(18, 9);
-    ansi->println(String(power, 2) + " kW   ");
-    printProgressBar(power_percentage, 30, "");
+    ftostr(buf, power, 1);
+    ansi->print(buf);
+    ansi->print(" kW   ");
+    printProgressBar((uint8_t)power_percentage, 30);
     ansi->print("  ");
     ansi->normal();
     ansi->gotoXY(27, 13);
-    ansi->print(String(energy_24h, 2) + " kWh   ");
+    ftostr(buf, energy_24h, 2);
+    ansi->print(buf);
+    ansi->print(" kWh   ");
     ansi->gotoXY(17, 14);
-    ansi->print(String(energy_total / 1000.0, 2) + " MWh   ");
+    ftostr(buf, energy_total / 1000.0, 2);
+    ansi->print(buf);
+    ansi->print(" MWh   ");
     ansi->gotoXY(9, 16);
-    ansi->print(String(hours, 2) + " hours   ");
+    ftostr(buf, hours, 2);
+    ansi->print(buf);
+    ansi->print(" hours   ");
 }
 
 void CLIScreenManager::drawDiagnosticsScreen(bool full_update)
@@ -288,7 +348,7 @@ void CLIScreenManager::drawDiagnosticsScreen(bool full_update)
     if (!ansi_enabled)
         return;
 
-    printHeader("TFM-100 - MEMORIA ERRORI");
+    printHeader(F("TFM-100 - MEMORIA ERRORI"));
     printSeparator('=');
 
     ansi->gotoXY(1, 4);
@@ -301,11 +361,12 @@ void CLIScreenManager::drawSystemInfoScreen(bool full_update)
 
     if (full_update)
     {
-        printHeader("TFM-100 - INFORMAZIONI SISTEMA");
+        printHeader(F("TFM-100 - INFORMAZIONI SISTEMA"));
         printSeparator('=');
 
         printFooter();
     }
+    char buf[10];
     ansi->gotoXY(1, 4);
     /* Show data for PT100 sensors */
     MAX31865 *sensor;
@@ -326,12 +387,11 @@ void CLIScreenManager::drawSystemInfoScreen(bool full_update)
         ansi->println(F(" Temperature: "));
         ansi->normal();
         ansi->print(F(" LOW(0x05) = "));
-        ansi->print(String(sensor->getLowerThreshold(), HEX));
+        ansi->print(sensor->getLowerThreshold(), HEX);
         ansi->print(" - HIGH(0x06) = ");
-        ansi->println(String(sensor->getUpperThreshold(), HEX));
-        ansi->clearLine(ansi->entireLine);
-        ansi->print(" ERR(0x07) = ");
-        ansi->println(String(sensor->getFault(), HEX));
+        ansi->print(sensor->getUpperThreshold(), HEX);
+        ansi->print(" - ERR(0x07) = ");
+        ansi->println(sensor->getFault(), HEX);
         ansi->clearLine(ansi->entireLine);
         ansi->print(F(" Vbias="));
         ansi->print(sensor->getBias() ? F("ON") : F("OFF"));
@@ -388,7 +448,7 @@ void CLIScreenManager::drawLogScreen(bool full_update)
     printFooter();
 }
 
-void CLIScreenManager::logMessage(const String &message, LogType severity)
+void CLIScreenManager::logMessage(const __FlashStringHelper *message, LogType severity)
 {
     uint8_t available_rows = terminal_height - 5;
     if (!ansi_enabled || last_screen != ScreenType::LOG)
@@ -399,24 +459,24 @@ void CLIScreenManager::logMessage(const String &message, LogType severity)
 
     ansi->gotoXY(1, 2 + logRow);
     uint8_t color = ansi->white;
-    String level;
+    const __FlashStringHelper *level;
     switch (severity)
     {
     case LogType::INFO:
         color = ansi->cyan;
-        level = "INFO";
+        level = F("INFO");
         break;
     case LogType::WARNING:
         color = ansi->yellow;
-        level = "WARNING";
+        level = F("WARNING");
         break;
     case LogType::ERROR:
         color = ansi->red;
-        level = "ERROR";
+        level = F("ERROR");
         break;
     case LogType::SUCCESS:
         color = ansi->green;
-        level = "SUCCESS";
+        level = F("SUCCESS");
         break;
     }
 
@@ -435,8 +495,61 @@ void CLIScreenManager::logMessage(const String &message, LogType severity)
         ansi->clearLine(ansi->entireLine);
 }
 
+// Overload per compatibilità con stringhe C normali
+void CLIScreenManager::logMessage(const char *message, LogType severity)
+{
+    uint8_t available_rows = terminal_height - 5;
+    if (!ansi_enabled || last_screen != ScreenType::LOG)
+        return;
+
+    if (++logRow > available_rows)
+        logRow = 1;
+
+    ansi->gotoXY(1, 2 + logRow);
+    uint8_t color = ansi->white;
+    const __FlashStringHelper *level;
+    switch (severity)
+    {
+    case LogType::INFO:
+        color = ansi->cyan;
+        level = F("INFO");
+        break;
+    case LogType::WARNING:
+        color = ansi->yellow;
+        level = F("WARNING");
+        break;
+    case LogType::ERROR:
+        color = ansi->red;
+        level = F("ERROR");
+        break;
+    case LogType::SUCCESS:
+        color = ansi->green;
+        level = F("SUCCESS");
+        break;
+    }
+
+    // Stampa il timestamp a 10 caratteri, padding a sinistra con zeri
+    char timestamp[11];
+    snprintf(timestamp, sizeof(timestamp), "%4lu", (uint32_t)(millis() / 1000));
+    ansi->print(timestamp);
+    ansi->foreground(color);
+    ansi->bold();
+    ansi->print(" [");
+    ansi->print(level);
+    ansi->print("] ");
+    ansi->normal();
+    ansi->println(message);
+    if (logRow < available_rows)
+        ansi->clearLine(ansi->entireLine);
+}
+
+void CLIScreenManager::logInfo(const char *message) { logMessage(message, LogType::INFO); }
+void CLIScreenManager::logWarning(const char *message) { logMessage(message, LogType::WARNING); }
+void CLIScreenManager::logError(const char *message) { logMessage(message, LogType::ERROR); }
+void CLIScreenManager::logSuccess(const char *message) { logMessage(message, LogType::SUCCESS); }
+
 // Metodi di utilità per la formattazione
-void CLIScreenManager::printColoredText(const String &text, uint8_t color, bool newline)
+void CLIScreenManager::printColoredText(const __FlashStringHelper *text, uint8_t color, bool newline)
 {
     if (!ansi_enabled)
     {
@@ -453,12 +566,12 @@ void CLIScreenManager::printColoredText(const String &text, uint8_t color, bool 
         ansi->println();
 }
 
-void CLIScreenManager::printProgressBar(uint8_t progress, uint8_t width, const String &label)
+void CLIScreenManager::printProgressBar(uint8_t progress, uint8_t width, const __FlashStringHelper *label)
 {
     if (!ansi_enabled)
         return;
 
-    if (label.length() > 0)
+    if (label != nullptr)
     {
         ansi->print(label);
         ansi->print(": ");
@@ -486,7 +599,7 @@ void CLIScreenManager::printProgressBar(uint8_t progress, uint8_t width, const S
     ansi->println("%");
 }
 
-void CLIScreenManager::printTable(const String headers[], const String data[][2], uint8_t rows, uint8_t cols)
+void CLIScreenManager::printTable(const __FlashStringHelper *headers[], const __FlashStringHelper *data[][2], uint8_t rows, uint8_t cols)
 {
     if (!ansi_enabled)
         return;
@@ -527,10 +640,24 @@ void CLIScreenManager::printTable(const String headers[], const String data[][2]
     }
 }
 
-void CLIScreenManager::printStatusIndicator(const String &label, bool status, const String &ok_text, const String &error_text)
+/**
+ * @brief Prints a status indicator with label and status, using ANSI colors.
+ * @param label Status label (const __FlashStringHelper*)
+ * @param status True for OK, false for error
+ * @param ok_text Text to display when status is OK (const __FlashStringHelper*)
+ * @param error_text Text to display when status is error (const __FlashStringHelper*)
+ * @return None
+ */
+void CLIScreenManager::printStatusIndicator(const __FlashStringHelper *label, bool status, const __FlashStringHelper *ok_text, const __FlashStringHelper *error_text)
 {
     if (!ansi_enabled)
         return;
+
+    // Use default values if nullptr is passed
+    if (!ok_text)
+        ok_text = F("OK");
+    if (!error_text)
+        error_text = F("ERROR");
 
     ansi->print(label);
     ansi->print(": ");
@@ -538,12 +665,16 @@ void CLIScreenManager::printStatusIndicator(const String &label, bool status, co
     if (status)
     {
         ansi->foreground(ansi->green);
-        ansi->print("[" + ok_text + "]");
+        ansi->print("[");
+        ansi->print(ok_text);
+        ansi->print("]");
     }
     else
     {
         ansi->foreground(ansi->red);
-        ansi->print("[" + error_text + "]");
+        ansi->print("[");
+        ansi->print(error_text);
+        ansi->print("]");
     }
 
     ansi->normal();
@@ -572,7 +703,7 @@ void CLIScreenManager::clearArea(uint8_t start_row, uint8_t end_row)
     }
 }
 
-void CLIScreenManager::printHeader(const String &title, uint8_t background, uint8_t foreground)
+void CLIScreenManager::printHeader(const __FlashStringHelper *title, uint8_t background, uint8_t foreground)
 {
     if (background == 255)
         background = ansi->blue;
@@ -587,13 +718,14 @@ void CLIScreenManager::printHeader(const String &title, uint8_t background, uint
     ansi->bold();
 
     // Stampa il titolo centrato
-    uint8_t padding = (terminal_width - title.length()) / 2;
+    uint8_t title_length = strlen_P((const char *)title);
+    uint8_t padding = (terminal_width - title_length) / 2;
     for (uint8_t i = 0; i < terminal_width; i++)
     {
         if (i == padding)
         {
             ansi->print(title);
-            i += title.length() - 1;
+            i += title_length - 1;
         }
         else
         {
