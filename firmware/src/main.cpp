@@ -1,13 +1,15 @@
-/*
-  TFM-100
+/**
+ * @file main.cpp
+ * @brief Entry point for the TFM-100 firmware: initialize hardware, schedule tasks and run main loop.
+ * @author Salvo Musumeci
+ * @date 2025-03-09
+ *
+ * This module configures peripherals (SPI, CAN, sensors), creates the J1939 manager,
+ * registers periodic tasks with the cooperative scheduler, and implements the main
+ * non-blocking loop that drives sensor state machines and the transport layer.
+ */
 
-  Manage the TFM-100 board reading sensors and sending data via CAN Bus
-
-  created 9 Mar 2025
-  by Salvo Musumeci
-*/
-
-// the setup function runs once when you press reset or power the board
+// The setup function runs once at reset or power-up
 
 // Framework lib
 #include <Arduino.h>
@@ -19,8 +21,8 @@
 #include <scheduler.h>
 #include <LEDs.h>
 #include <PT100.h>
-#include <j1939.h>
 #include <flow.h>
+#include <J1939Manager.h>
 
 // 3rd parties lib
 #include <mcp_can.h>
@@ -28,67 +30,91 @@
 // Include Headers
 #include <status.h>
 #include <cli.h>
+#include <can_messages.h>
+#include <McpCanAdapter.h>
+#include <dip_switch.h>
 
-// External functions
-uint8_t dip_switch_read(void);               // dip_switch.cpp
-void loop_CanMessageEachSecond(uint32_t td); // loop_can_messages.cpp
+/* CLI */
+CLIScreenManager cli = CLIScreenManager();
 
-/****** Shared Objects *******/
-
-// Temperature Sensors Variables
+/* Temperature Sensors Variables */
 PT100 supply_sensor = PT100(SUPPLY_CS);
 PT100 return_sensor = PT100(RETURN_CS);
 
-// Flow Sensor Variables
+/* Flow Sensor Variables */
 Flow flowObj = Flow(FLOW_TICKS_PER_LITER);
 
-// CAN-Bus Variables
-MCP_CAN CAN0(MCP_CS); // Set CS to pin 4
+/* Set-up J1939 Transport Layer */
+// Allocation of CAN controller and adapter
+MCP_CAN CAN0(MCP_CS);           // Set CS to pin 4
+McpCanAdapter canAdapter(CAN0); // Adapter per MCP_CAN
+
+// Pass the callbacks struct as the second argument
+J1939Callbacks j1939_cbs;
+
+// J1939 Manager instance (created in setup once CAN is initialized)
+J1939Manager *j1939 = nullptr; // allocated in setup
 
 /* Node Status */
 NodeStatus_t node_status = SETUP;
+
+/* LED Indicators */
+LEDs ledIndicators = LEDs(LED_RED, LED_GREEN);
+
+// Scheduler
+Scheduler scheduler = Scheduler();
+
+/* Node ID */
+uint8_t node_id;
 
 bool CANbusOff = false;
 bool CANbusWarn = false;
 bool HwFailure = true; // Assume HW failure until all init done
 
-/* Node ID */
-uint8_t node_id;
+/* CAN Messages */
+HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
+CAN_Temperature TempMessage = CAN_Temperature();
+CAN_FilteredTemperatureAndFlow TempAndFlowMessage = CAN_FilteredTemperatureAndFlow();
 
-/* LED Indicators */
-LEDs ledIndicators = LEDs(LED_RED, LED_GREEN);
-/* CLI */
-CLIScreenManager cli = CLIScreenManager();
-// Scheduler
-Scheduler scheduler = Scheduler();
-
-// J1939 Variables
-J1939_HeartBeat CAN_heartbeat_msg = J1939_HeartBeat();
-J1939_Temperature CAN_Temp_msg = J1939_Temperature();
-J1939_FilteredTemperatureAndFlow CAN_TempAndFlow = J1939_FilteredTemperatureAndFlow();
+// Forward declaration of J1939Descriptor is available via J1939Manager.h
+// Provide a simple error callback to forward J1939 manager errors to CLI
+static void j1939_on_error(const J1939Descriptor &desc)
+{
+  char buf[80];
+  // Format PGN in hex with leading 0x
+  snprintf(buf, sizeof(buf), "J1939 TX ERROR PGN=0x%06lX ", (unsigned long)desc.pgn);
+  cli.logError(buf);
+}
 
 void setup()
 {
-
-  cli.begin();
-
-  /* Configure microcontroller. */
+  /**
+   * @brief Initialize subsystems and schedule periodic tasks.
+   *
+   * This routine initializes CLI, serial, CAN controller, sensors and the
+   * J1939 transport manager. It registers periodic tasks with the cooperative
+   * scheduler and transitions the node into RUN state if initialization
+   * succeeds. On failure it displays an error UI for up to 60s then triggers
+   * a watchdog reset.
+   */
 
   bool mcp_init = false, mcp_normal = false, supply_init = false, return_init = false;
 
-  // Initialize Serial Monitor
-  Serial.begin(115200); // This pipes to the serial monitor
+  /* Configure microcontroller/peripherals. */
 
-  // Read node address for dip-switch
+  // Serial for CLI/diagnostics output
+  Serial.begin(115200);
+  cli.begin();
+
+  // Compute node address from DIP switches (base + switch value)
   node_id = dip_switch_read() | NODE_ID_BASE;
 
-  // Initialize CAN-Bus
+  // Initialize MCP2515 CAN controller (MCP_ANY - auto filter, 250kbps, external oscillator 8MHz)
   if ((mcp_init = (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK)))
     if ((mcp_normal = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK)))
     {
-      // Set up heartbeat message
-      CAN_heartbeat_msg.begin(node_id);
-      scheduler.addTask(loop_CanMessageEachSecond, 1000);
+
+      // Monitor CAN controller error flags frequently (100ms)
       scheduler.addTask([](uint32_t td)
                         {
                             uint8_t error_flags = CAN0.getError();
@@ -99,33 +125,44 @@ void setup()
                         100);
     }
 
-  // Initialize the MAX31865
+  // Initialize MAX31865 PT100 sensors (non-blocking drivers)
   supply_init = supply_sensor.begin((float)PT100_ALPHA);
   return_init = return_sensor.begin((float)PT100_ALPHA);
 
+  // If any critical subsystem is not initialized, show hardware failure UI and reboot
   if (!mcp_normal || !supply_init || !return_init)
   {
     node_status = STOP;
     bool reboot_now = false;
     while (millis() < 60000 && !reboot_now)
     {
+      // drawHardwareFailure returns true when user requests immediate reboot
       reboot_now = cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
+      // Keep LED state machine ticking and allow scheduled tasks to run
       ledIndicators.process(true);
       scheduler.run();
     }
+    // Force reboot via watchdog if recovery is not requested
     wdt_enable(WDTO_15MS);
     while (1)
       ;
   }
 
-  // Initialize Flow Sensor
-  flowObj.begin([](float flow) {}); // TODO: Update energy calculation
+  // Create and initialize J1939 manager with CAN adapter and callbacks
+  // Hook error callback to forward J1939 manager errors to CLI
+  j1939_cbs.on_error = j1939_on_error;
+  j1939 = new J1939Manager(canAdapter, j1939_cbs);
+  j1939->begin(node_id);
 
-  // Initialize J1939
-  CAN_Temp_msg.begin(node_id);
-  CAN_TempAndFlow.begin(node_id);
+  // Initialize flow sensor (callback currently a stub)
+  flowObj.begin([](float flow) {});
 
-  // Trigger new reading every 1000ms
+  // Add message objects to J1939 manager
+  j1939->registerMessage(&HBMessage);
+  j1939->registerMessage(&TempMessage);
+  j1939->registerMessage(&TempAndFlowMessage);
+
+  // Schedule periodic PT100 measurements (driver triggers non-blocking measurement)
   scheduler.addTask([](uint32_t td)
                     {
                       if (!supply_sensor.triggerMeasurement())
@@ -134,28 +171,44 @@ void setup()
                         cli.logError("Unable to read RETURN"); },
                     PT100_SAMPLE_RATE);
 
+  // Periodic CLI housekeeping (screens, input processing)
   scheduler.addTask([](uint32_t td)
                     { cli.periodic(); },
                     1000);
 
-  // Update node status
+  // All initialization succeeded, enter RUN state
   node_status = RUN;
 }
 
 void loop()
 {
-  // Run the scheduler
+  /**
+   * @brief Main non-blocking loop
+   *
+   * The scheduler executes registered tasks. The J1939 manager is polled with
+   * the current time (ms) so it can manage timed transmissions and timeouts.
+   * Sensor state machines and the CLI are progressed here as well. Node power
+   * state is updated based on whether flow is present.
+   */
+
+  // Run scheduled periodic tasks
   scheduler.run();
-  // process each sensor
+
+  // Let J1939 manager process pending transmissions/timeouts
+  if (j1939)
+    j1939->process(millis());
+
+  // Advance non-blocking sensor state machines
   supply_sensor.process();
   return_sensor.process();
   flowObj.process();
+
+  // CLI processing (screen refresh, input handling)
   cli.process();
-  // Check if the flow is zero
-  if (flowObj.isFlowing())
-    node_status = RUN;
-  else
-    node_status = SLEEP;
-  // Update LEDs
+
+  // Set node mode depending on flow present
+  node_status = flowObj.isFlowing() ? RUN : SLEEP;
+
+  // Update LED state machine
   ledIndicators.process();
 }
