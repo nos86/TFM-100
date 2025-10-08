@@ -1,4 +1,4 @@
- #pragma once
+#pragma once
 #include <J1939Manager.h>
 
 /**
