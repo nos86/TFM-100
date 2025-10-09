@@ -16,6 +16,7 @@
 #include <SPI.h>
 #include "config.h"
 #include <avr/wdt.h>
+#include <MAX31865_NonBlocking.h>
 
 // MyLib
 #include <scheduler.h>
@@ -23,6 +24,7 @@
 #include <PT100.h>
 #include <flow.h>
 #include <J1939Manager.h>
+#include <diagnostics.h>
 
 // 3rd parties lib
 #include <mcp_can.h>
@@ -33,6 +35,7 @@
 #include <can_messages.h>
 #include <McpCanAdapter.h>
 #include <dip_switch.h>
+#include <dtc.h>
 
 /* CLI */
 CLIScreenManager cli = CLIScreenManager();
@@ -66,6 +69,7 @@ Scheduler scheduler = Scheduler();
 
 /* Node ID */
 uint8_t node_id;
+uint8_t severity = 0;
 
 bool CANbusOff = false;
 bool CANbusWarn = false;
@@ -76,6 +80,10 @@ HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
 CAN_Temperature TempMessage = CAN_Temperature();
 CAN_FilteredTemperatureAndFlow TempAndFlowMessage = CAN_FilteredTemperatureAndFlow();
 
+/* Diagnostics */
+TFM100_DTC_Dict dtc_dict_instance = TFM100_DTC_Dict();
+Diagnostics DSM = Diagnostics(&dtc_dict_instance);
+
 // Forward declaration of J1939Descriptor is available via J1939Manager.h
 // Provide a simple error callback to forward J1939 manager errors to CLI
 static void j1939_on_error(const J1939Descriptor &desc)
@@ -85,6 +93,8 @@ static void j1939_on_error(const J1939Descriptor &desc)
   snprintf(buf, sizeof(buf), "J1939 TX ERROR PGN=0x%06lX ", (unsigned long)desc.pgn);
   cli.logError(buf);
 }
+
+void update_errors();
 
 void setup()
 {
@@ -132,6 +142,10 @@ void setup()
   // If any critical subsystem is not initialized, show hardware failure UI and reboot
   if (!mcp_normal || !supply_init || !return_init)
   {
+    DSM.setRaw(DTC_SupplyLineDeviceError, supply_init == false);
+    DSM.setRaw(DTC_ReturnLineDeviceError, return_init == false);
+    DSM.setRaw(DTC_CANBusDeviceError, mcp_normal == false);
+
     node_status = STOP;
     bool reboot_now = false;
     while (millis() < 60000 && !reboot_now)
@@ -139,6 +153,7 @@ void setup()
       // drawHardwareFailure returns true when user requests immediate reboot
       reboot_now = cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
       // Keep LED state machine ticking and allow scheduled tasks to run
+      severity = DSM.getMaxSeverity();
       ledIndicators.process(true);
       scheduler.run();
     }
@@ -176,8 +191,35 @@ void setup()
                     { cli.periodic(); },
                     1000);
 
+  // Periodic diagnostics update (check sensor errors, update DTC memory)
+  scheduler.addTask([](uint32_t td)
+                    { update_errors(); },
+                    1000);
+
   // All initialization succeeded, enter RUN state
   node_status = RUN;
+}
+
+void update_errors()
+{
+  // Supply Sensor Errors
+  DSM.setRaw(DTC_SupplyLineRefInHigh, supply_sensor.last_fault & MAX31865::FAULT_HIGHTHRESH_BIT);
+  DSM.setRaw(DTC_SupplyLineRefInLow, supply_sensor.last_fault & MAX31865::FAULT_LOWTHRESH_BIT);
+  DSM.setRaw(DTC_SupplyLineRtdInLow, supply_sensor.last_fault & MAX31865::FAULT_RTDINLOW_BIT);
+  DSM.setRaw(DTC_SupplyLineUOV, supply_sensor.last_fault & MAX31865::FAULT_OVUV_BIT);
+
+  // Return Sensor Errors
+  DSM.setRaw(DTC_ReturnLineRefInHigh, return_sensor.last_fault & MAX31865::FAULT_HIGHTHRESH_BIT);
+  DSM.setRaw(DTC_ReturnLineRefInLow, return_sensor.last_fault & MAX31865::FAULT_LOWTHRESH_BIT);
+  DSM.setRaw(DTC_ReturnLineRtdInLow, return_sensor.last_fault & MAX31865::FAULT_RTDINLOW_BIT);
+  DSM.setRaw(DTC_ReturnLineUOV, return_sensor.last_fault & MAX31865::FAULT_OVUV_BIT);
+
+  // CAN Bus Errors
+  DSM.setRaw(DTC_CANBusOff, CANbusOff);
+  DSM.setRaw(DTC_CANBusErrorPassive, CANbusWarn);
+
+  DSM.periodic_update();
+  severity = DSM.getMaxSeverity();
 }
 
 void loop()
