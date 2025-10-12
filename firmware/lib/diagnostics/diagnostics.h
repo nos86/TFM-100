@@ -51,6 +51,10 @@ public:
      */
     Diagnostics(DTC_List *dict);
 
+    // Persistence is controlled entirely by application-provided hooks.
+    // Do not provide an offset via constructor or API in the library; the
+    // application is responsible for managing any address/namespace.
+
     void setRaw(uint8_t dtc_idx, bool raw);
     void periodic_update();
     void clear();
@@ -62,8 +66,34 @@ public:
     uint8_t getErrorSeverity(uint8_t idx) const;
     uint8_t getMaxSeverity() const;
     uint8_t getIndexForActiveErrorAt(uint8_t pos) const;
+    /**
+     * @brief Returns true if the diagnostics memory was successfully loaded from persistent storage
+     */
+    bool eepromLoadOk() const { return eepromLoadOk_; }
 
 private:
-    DTC_List *dict_;                               // Pointer to DTC dictionary implementation
-    dtc_history_t errors[DIAGNOSTICS_MEMORY_SIZE]; // DTC history array
+    DTC_List *dict_;                                              // Pointer to DTC dictionary implementation
+    dtc_history_t errors[DIAGNOSTICS_MEMORY_SIZE];                // DTC history array
+    bool eepromLoadOk_ = false;                                   // Indicates whether last loadFromEEPROM succeeded
+    void saveEntryToEEPROM(uint8_t index);                        // Save a single entry to EEPROM
+    void saveToEEPROM();                                          // Persist memory via platform hook (no-op by default)
+    bool loadFromEEPROM();                                        // Load memory via platform hook (no-op by default). Returns true on success
+    void setStateAndPersist(uint8_t index, dtc_state_t newState); //WS Helper to set state and persist when changed
 };
+
+/*
+ * Platform persistence hooks
+ *
+ * Applications may provide their own implementations of these functions
+ * (for example in `main.cpp`) to control how diagnostics memory is
+ * persisted. If not provided, the library supplies weak default
+ * implementations that will make no operation.
+ *
+ * Signatures (hooks operate on raw bytes):
+ *  - void diag_save_to_persistent(uint16_t offset, const uint8_t *data, uint8_t length);
+ *    -> Write `length` raw bytes starting at logical `offset` (application maps logical offset to physical storage).
+ *  - bool diag_load_from_persistent(uint16_t offset, uint8_t *data, uint8_t length);
+ *    -> Read `length` bytes into `data` from logical `offset`. Return true on success.
+ */
+void diag_save_to_persistent(uint16_t offset, const uint8_t *data, uint8_t length);
+bool diag_load_from_persistent(uint16_t offset, uint8_t *data, uint8_t length);

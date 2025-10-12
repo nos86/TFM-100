@@ -4,11 +4,12 @@
 
 #pragma once
 
-#define MAGIC_NUMBER 0x1234
+#define MAGIC_NUMBER 0x5886
 
 typedef enum
 {
-    DTC_SupplyLineRtdHighThres = 0,
+    DTC_DSMEepromFailure = 0,
+    DTC_SupplyLineRtdHighThres,
     DTC_SupplyLineRtdLowThres,
     DTC_SupplyLineRefInHigh,
     DTC_SupplyLineRefInLow,
@@ -25,6 +26,7 @@ typedef enum
     DTC_CANBusOff,
     DTC_CANBusErrorPassive,
     DTC_CANBusDeviceError,
+
 } dtc_enum_t;
 
 typedef enum
