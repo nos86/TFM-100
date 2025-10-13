@@ -136,6 +136,26 @@ void Diagnostics::clear()
     }
 }
 
+/**
+ * @brief Get the DTC index for the active error at the given position
+ * @param pos Position in the list of active errors (0-based)
+ * @return DTC index if found, or 0xFF if not found
+ */
+uint8_t Diagnostics::getIndexForActiveErrorAt(uint8_t pos) const
+{
+    uint8_t count = 0;
+    for (uint8_t i = 0; i < DIAGNOSTICS_MEMORY_SIZE; i++)
+    {
+        if (dtc_get_state(&errors[i]) == DTC_ACTIVE)
+        {
+            if (count == pos)
+                return errors[i].dtc_idx;
+            count++;
+        }
+    }
+    return 0xFF; // Not found
+}
+
 uint8_t Diagnostics::numberOfActiveErrors() const
 {
     uint8_t count = 0;
@@ -167,6 +187,13 @@ const char *Diagnostics::getErrorDescription(uint8_t idx) const
     if (name)
         return name;
     return "Unknown DTC";
+}
+const uint8_t Diagnostics::getOccurrenceCount(uint8_t idx) const
+
+{
+    if (idx >= DIAGNOSTICS_MEMORY_SIZE)
+        return 0;
+    return errors[idx].occurrence;
 }
 
 uint8_t Diagnostics::getErrorSeverity(uint8_t idx) const

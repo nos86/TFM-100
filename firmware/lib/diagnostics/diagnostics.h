@@ -58,8 +58,10 @@ public:
     uint8_t numberOfErrors() const;
     const dtc_history_t *getMemory() const { return errors; }
     const char *getErrorDescription(uint8_t idx) const;
+    const uint8_t getOccurrenceCount(uint8_t idx) const;
     uint8_t getErrorSeverity(uint8_t idx) const;
     uint8_t getMaxSeverity() const;
+    uint8_t getIndexForActiveErrorAt(uint8_t pos) const;
 
 private:
     DTC_List *dict_;                               // Pointer to DTC dictionary implementation

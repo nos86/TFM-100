@@ -24,6 +24,7 @@
 #include <PT100.h>
 #include <flow.h>
 #include <J1939Manager.h>
+#include <J1939_DM.h>
 #include <diagnostics.h>
 
 // 3rd parties lib
@@ -79,6 +80,7 @@ bool HwFailure = true; // Assume HW failure until all init done
 HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
 CAN_Temperature TempMessage = CAN_Temperature();
 CAN_FilteredTemperatureAndFlow TempAndFlowMessage = CAN_FilteredTemperatureAndFlow();
+J1939_DM1Message DM1 = J1939_DM1Message(1000); // 1s interval
 
 /* Diagnostics */
 TFM100_DTC_Dict dtc_dict_instance = TFM100_DTC_Dict();
@@ -176,6 +178,7 @@ void setup()
   j1939->registerMessage(&HBMessage);
   j1939->registerMessage(&TempMessage);
   j1939->registerMessage(&TempAndFlowMessage);
+  j1939->registerMessage(&DM1);
 
   // Schedule periodic PT100 measurements (driver triggers non-blocking measurement)
   scheduler.addTask([](uint32_t td)
