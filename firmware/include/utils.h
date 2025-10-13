@@ -1,5 +1,5 @@
 /**
- * @file mini_printf.h
+ * @file utils.h
  * @brief Very small, dependency-free helpers to format small strings without pulling full printf.
  * @author helper
  * @note Keep implementations to allow compiler to optimize and avoid extra code size.
