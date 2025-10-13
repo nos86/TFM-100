@@ -38,6 +38,7 @@
 #include <dip_switch.h>
 #include <dtc.h>
 #include <EEPROM.h>
+#include <utils.h>
 
 /* CLI */
 CLIScreenManager cli = CLIScreenManager();
@@ -120,8 +121,14 @@ bool diag_load_from_persistent(uint16_t offset, uint8_t *data, uint8_t length)
 static void j1939_on_error(const J1939Descriptor &desc)
 {
   char buf[80];
-  // Format PGN in hex with leading 0x
-  snprintf(buf, sizeof(buf), "J1939 TX ERROR PGN=0x%06lX ", (unsigned long)desc.pgn);
+  // Format PGN in hex with leading 0x using minimal formatter then append message
+  mini_hex6(buf, (unsigned long)desc.pgn); // produces 0xNNNNNN\0
+  // Append message text after the hex
+  char *p = buf + 8;
+  const char *msg = " J1939 TX ERROR";
+  while (*msg)
+    *p++ = *msg++;
+  *p = '\0';
   cli.logError(buf);
 }
 

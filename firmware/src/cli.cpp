@@ -7,6 +7,7 @@
 #include <mcp_can.h>
 #include <MAX31865_NonBlocking.h>
 #include <diagnostics.h>
+#include <utils.h>
 
 // External variables
 extern PT100 supply_sensor; // main.cpp
@@ -16,48 +17,6 @@ extern Scheduler scheduler; // main.cpp
 extern uint8_t node_id;     // main.cpp
 extern MCP_CAN CAN0;        // main.cpp
 extern Diagnostics DSM;     // main.cpp
-
-/**
- * @brief Converts a float to string with specified decimals, minimal RAM usage.
- * @param buf Output buffer (must be large enough)
- * @param f Float value to convert
- * @param decimals Number of decimal places
- * @return None
- * @remarks Uses integer math, no heap, buffer must be at least 12 bytes for 2 decimals.
- */
-void ftostr(char *buf, float f, int decimals)
-{
-    int32_t mult = 1;
-    for (int i = 0; i < decimals; ++i)
-        mult *= 10;
-    int32_t value = (int32_t)(f * mult + (f < 0 ? -0.5f : 0.5f));
-    int32_t int_part = value / mult;
-    int32_t frac_part = abs(value % mult);
-
-    // Print integer part
-    char *p = buf;
-    if (int_part < 0)
-    {
-        *p++ = '-';
-        int_part = -int_part;
-    }
-    itoa(int_part, p, 10);
-    while (*p)
-        ++p;
-
-    // Print decimal part
-    if (decimals > 0)
-    {
-        *p++ = '.';
-        int pow10 = mult / 10;
-        for (int i = 0; i < decimals; ++i)
-        {
-            *p++ = '0' + (frac_part / pow10) % 10;
-            pow10 /= 10;
-        }
-    }
-    *p = '\0';
-}
 
 // Constructor
 CLIScreenManager::CLIScreenManager(Stream *stream, uint16_t width, uint16_t height)
@@ -610,7 +569,7 @@ void CLIScreenManager::logMessage(const __FlashStringHelper *message, LogType se
 
     // Stampa il timestamp a 10 caratteri, padding a sinistra con zeri
     char timestamp[11];
-    snprintf(timestamp, sizeof(timestamp), "%4lu", (uint32_t)(millis() / 1000));
+    mini_udec_padded(timestamp, (uint32_t)(millis() / 1000), 4);
     ansi->print(timestamp);
     ansi->foreground(color);
     ansi->bold();
@@ -658,7 +617,7 @@ void CLIScreenManager::logMessage(const char *message, LogType severity)
 
     // Stampa il timestamp a 10 caratteri, padding a sinistra con zeri
     char timestamp[11];
-    snprintf(timestamp, sizeof(timestamp), "%4lu", (uint32_t)(millis() / 1000));
+    mini_udec_padded(timestamp, (uint32_t)(millis() / 1000), 4);
     ansi->print(timestamp);
     ansi->foreground(color);
     ansi->bold();
