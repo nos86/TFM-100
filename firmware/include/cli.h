@@ -41,6 +41,7 @@ private:
     void printHeader(const __FlashStringHelper *title, uint8_t background = 255, uint8_t foreground = 255);
     void printFooter(bool failure = false);
     void printSeparator(char character = '-');
+    void printMenuFooter();
     void printCenteredText(const __FlashStringHelper *text);
     void clearArea(uint8_t start_row, uint8_t end_row);
     void logMessage(const __FlashStringHelper *message, LogType severity = LogType::INFO);
@@ -70,7 +71,7 @@ public:
     // Metodi di disegno delle schermate
     void drawRealTimeSignals(bool full_update = true);
     bool drawHardwareFailure(bool mcp_init, bool mcp_normal, bool supply_init, bool return_init);
-    void drawDiagnosticsScreen(bool full_update = true);
+    void drawDiagnosticsScreen(bool full_update = true, char input = 0);
     void drawSystemInfoScreen(bool full_update = true);
     void drawCalibrationScreen(bool full_update = true, char input = 0);
     void drawLogScreen(bool full_update = true);

@@ -46,9 +46,8 @@ extern PT100 supply_sensor;      // main.cpp
 extern PT100 return_sensor;      // main.cpp
 extern Flow flowObj;             // main.cpp
 extern NodeStatus_t node_status; // main.cpp
-extern bool CANbusOff;           // main.cpp
-extern bool CANbusWarn;          // main.cpp
 extern CLIScreenManager cli;     // main.cpp
+extern uint8_t severity;         // main.cpp
 
 LEDs::LEDs(uint8_t redPin, uint8_t greenPin)
 {
@@ -153,23 +152,30 @@ void LEDs::process(bool HwFailure)
     {
         uint8_t rd_co, gr_co;
 
-        /* Decide red LED (error) output bit:
-         * - Hardware failure: use fast flicker
-         * - CAN bus off: solid ON
-         * - CAN warning: single flash pattern
-         * - PT100 sensor error: blink pattern
-         * - otherwise off
-         */
-        if (HwFailure)
-            rd_co = GenericLedStatus & LED_flicker;
-        else if (CANbusOff)
-            rd_co = 1;
-        else if (CANbusWarn)
-            rd_co = GenericLedStatus & LED_flash_1;
-        else if (supply_sensor.errorDetected || return_sensor.errorDetected)
-            rd_co = GenericLedStatus & LED_blink;
-        else
+        switch (severity)
+        {
+        case 0:
             rd_co = 0;
+            break;
+        case 1:
+            rd_co = GenericLedStatus & LED_flash_1;
+            break;
+        case 2:
+            rd_co = GenericLedStatus & LED_flash_2;
+            break;
+        case 3:
+            rd_co = GenericLedStatus & LED_flash_3;
+            break;
+        case 4:
+            rd_co = 1;
+            break;
+        case 5:
+            rd_co = GenericLedStatus & LED_blink;
+            break;
+        default:
+            rd_co = GenericLedStatus & LED_flicker;
+            break;
+        }
 
         /* Decide green LED (status) output bit:
          * - CLI connected: show 2.5Hz blink

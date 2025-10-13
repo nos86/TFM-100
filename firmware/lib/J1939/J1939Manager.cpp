@@ -235,7 +235,7 @@ void J1939Manager::processCurrent(uint16_t now_ms)
         if (sequence_counter == 0)
         {
             // Send BAM Connection Management (CM) frame to announce a large transfer
-            can_id = buildCanId(6, 0xEC00, sa_); // BAM uses PGN 0xEC00 and priority 6
+            can_id = buildCanId(6, 0xECFF, sa_); // BAM uses PGN 0xECFF (Broadcast) and priority 6
             len_frame = 8;
 
             // The source buffer (if any) was locked by startNext() prior to
@@ -267,17 +267,22 @@ void J1939Manager::processCurrent(uint16_t now_ms)
         else
         {
             // Prepare a Data Transfer (DT) frame: 1 byte sequence + up to 7 data bytes
-            can_id = buildCanId(6, 0xEB00, sa_);  // DT uses PGN 0xEB00 and priority 6
+            can_id = buildCanId(6, 0xEBFF, sa_);  // DT uses PGN 0xEBFF (Broadcast) and priority 6
             frame_payload_[0] = sequence_counter; // Sequence number (1-based)
 
             // Compute offset and how many bytes to send this DT
             uint16_t data_offset = (sequence_counter - 1) * 7;
             uint8_t bytes_to_send = min(desc.len - data_offset, 7);
-            len_frame = bytes_to_send + 1;
+            // Fill available data bytes starting at index 1
             fillFramePayload(desc, 1, data_offset, bytes_to_send);
             is_final_frame = (data_offset + bytes_to_send >= desc.len);
 
-            // Send DT
+            // Pad remaining bytes to 8-byte CAN frame with 0xFF for interoperability
+            for (uint8_t i = 1 + bytes_to_send; i < 8; i++)
+                frame_payload_[i] = 0xFF;
+            len_frame = 8;
+
+            // Send DT (always as full 8-byte frame)
             transmission_success = can_.sendExtendedFrame(can_id, frame_payload_, len_frame);
             if (transmission_success)
             {

@@ -31,3 +31,7 @@
 #define PT100_FILTER_RC 5000  // 5s
 #define PT100_SAMPLE_RATE 100 // 100ms
 #define PT100_ALPHA ((float)PT100_SAMPLE_RATE / ((float)PT100_FILTER_RC + PT100_SAMPLE_RATE))
+
+// EEPROM layout
+// First byte reserved for diagnostics storage start (logical offset)
+#define DIAGNOSTICS_EEPROM_OFFSET 0x40

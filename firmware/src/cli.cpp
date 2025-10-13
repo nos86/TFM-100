@@ -6,6 +6,8 @@
 #include <scheduler.h>
 #include <mcp_can.h>
 #include <MAX31865_NonBlocking.h>
+#include <diagnostics.h>
+#include <utils.h>
 
 // External variables
 extern PT100 supply_sensor; // main.cpp
@@ -14,48 +16,7 @@ extern Flow flowObj;        // main.cpp
 extern Scheduler scheduler; // main.cpp
 extern uint8_t node_id;     // main.cpp
 extern MCP_CAN CAN0;        // main.cpp
-
-/**
- * @brief Converts a float to string with specified decimals, minimal RAM usage.
- * @param buf Output buffer (must be large enough)
- * @param f Float value to convert
- * @param decimals Number of decimal places
- * @return None
- * @remarks Uses integer math, no heap, buffer must be at least 12 bytes for 2 decimals.
- */
-void ftostr(char *buf, float f, int decimals)
-{
-    int32_t mult = 1;
-    for (int i = 0; i < decimals; ++i)
-        mult *= 10;
-    int32_t value = (int32_t)(f * mult + (f < 0 ? -0.5f : 0.5f));
-    int32_t int_part = value / mult;
-    int32_t frac_part = abs(value % mult);
-
-    // Print integer part
-    char *p = buf;
-    if (int_part < 0)
-    {
-        *p++ = '-';
-        int_part = -int_part;
-    }
-    itoa(int_part, p, 10);
-    while (*p)
-        ++p;
-
-    // Print decimal part
-    if (decimals > 0)
-    {
-        *p++ = '.';
-        int pow10 = mult / 10;
-        for (int i = 0; i < decimals; ++i)
-        {
-            *p++ = '0' + (frac_part / pow10) % 10;
-            pow10 /= 10;
-        }
-    }
-    *p = '\0';
-}
+extern Diagnostics DSM;     // main.cpp
 
 // Constructor
 CLIScreenManager::CLIScreenManager(Stream *stream, uint16_t width, uint16_t height)
@@ -183,13 +144,13 @@ void CLIScreenManager::process()
             drawRealTimeSignals(full_update);
             break;
         case ScreenType::DIAGNOSTICS:
-            drawDiagnosticsScreen();
+            drawDiagnosticsScreen(full_update, input);
             break;
         case ScreenType::SYSTEM_INFO:
-            drawSystemInfoScreen();
+            drawSystemInfoScreen(full_update);
             break;
         case ScreenType::CALIBRATION:
-            drawCalibrationScreen(input);
+            drawCalibrationScreen(full_update, input);
             break;
         case ScreenType::LOG:
             drawLogScreen(full_update);
@@ -343,15 +304,142 @@ void CLIScreenManager::drawRealTimeSignals(bool full_update)
     ansi->print(" hours   ");
 }
 
-void CLIScreenManager::drawDiagnosticsScreen(bool full_update)
+void CLIScreenManager::drawDiagnosticsScreen(bool full_update, char input)
 {
+    static bool no_errors = true;
     if (!ansi_enabled)
         return;
 
-    printHeader(F("TFM-100 - MEMORIA ERRORI"));
-    printSeparator('=');
+    // Handle input for reset errors
+    if (input == 'r' || input == 'R')
+        DSM.clear();
 
-    ansi->gotoXY(1, 4);
+    if (full_update)
+    {
+        printHeader(F("TFM-100 - MEMORIA ERRORI"));
+        printSeparator('=');
+
+        // Print table header using printTable style
+        ansi->foreground(ansi->yellow);
+        ansi->bold();
+        ansi->print(F("ID\tError Description\t\tState\t\tSeverity\tOcc."));
+        ansi->normal();
+        ansi->println();
+        printSeparator('-');
+    }
+
+    /* Show Diagnostics Data in Table Format */
+    const dtc_history_t *errors = DSM.getMemory();
+    uint8_t numberOfStoredErrors = DSM.numberOfErrors();
+
+    // Erase old printed area
+    clearArea(5 + numberOfStoredErrors, 5 + DIAGNOSTICS_MEMORY_SIZE);
+    ansi->gotoXY(1, 5);
+    if (numberOfStoredErrors == 0)
+    {
+        ansi->println(F("No errors stored in memory"));
+    }
+    else
+    {
+        if (no_errors)
+            ansi->clearLine(ansi->entireLine);
+        // Print table rows
+        for (uint8_t i = 0; i < DIAGNOSTICS_MEMORY_SIZE; i++)
+        {
+            if (dtc_get_state(&errors[i]) != DTC_EMPTY)
+            {
+                // ID column (cyan color like printTable)
+                ansi->foreground(ansi->cyan);
+                ansi->print(i);
+                ansi->normal();
+                ansi->print(F("\t"));
+
+                // Error Description column (white color)
+                ansi->foreground(ansi->white);
+                const char *description = DSM.getErrorDescription(i);
+                if (description)
+                {
+                    ansi->print(description);
+                }
+                else
+                {
+                    ansi->print(F("Unknown DTC"));
+                }
+                ansi->normal();
+                ansi->print(F("\t\t"));
+
+                // State column (white color)
+                ansi->foreground(ansi->white);
+                switch (dtc_get_state(&errors[i]))
+                {
+                case DTC_PENDING:
+                    ansi->print(F("Pending"));
+                    break;
+                case DTC_ACTIVE:
+                    ansi->print(F("Active "));
+                    break;
+                case DTC_HEALING:
+                    ansi->print(F("Healing"));
+                    break;
+                case DTC_HISTORY:
+                    ansi->print(F("History"));
+                    break;
+                default:
+                    ansi->print(F("Unknown"));
+                    break;
+                }
+                ansi->normal();
+                ansi->print(F("\t\t"));
+
+                // Severity column (color-coded by severity level)
+                uint8_t severity = DSM.getErrorSeverity(i);
+                if (severity != 0xFF)
+                {
+                    // Color-code severity: 1=white, 2-4=red 5+=background red
+                    if (severity < 1)
+                        ansi->foreground(ansi->white);
+                    else if (severity < 4)
+                        ansi->foreground(ansi->red);
+                    else
+                    {
+                        ansi->background(ansi->red);
+                        ansi->foreground(ansi->white);
+                    }
+                    ansi->print("  ");
+                    ansi->print(severity);
+                    ansi->print("  ");
+                }
+                else
+                {
+                    ansi->foreground(ansi->white);
+                    ansi->print(F("?"));
+                }
+                ansi->normal();
+                ansi->print(F("\t\t"));
+
+                // Occurrences column (white color)
+                ansi->foreground(ansi->white);
+                ansi->print(errors[i].occurrence);
+                ansi->normal();
+                ansi->println();
+            }
+        }
+    }
+
+    if (full_update)
+    {
+        ansi->gotoXY(1, terminal_height - 2);
+        printSeparator('-');
+        printMenuFooter();
+    }
+    ansi->gotoXY(1, terminal_height - 3);
+    ansi->print(F("Total errors: "));
+    ansi->print(numberOfStoredErrors);
+    ansi->print(F(" | Active: "));
+    ansi->print(DSM.numberOfActiveErrors());
+    ansi->println(F("\tPress 'R' to reset errors"));
+
+    no_errors = (numberOfStoredErrors == 0);
 }
 
 void CLIScreenManager::drawSystemInfoScreen(bool full_update)
@@ -366,7 +454,6 @@ void CLIScreenManager::drawSystemInfoScreen(bool full_update)
 
         printFooter();
     }
-    char buf[10];
     ansi->gotoXY(1, 4);
     /* Show data for PT100 sensors */
     MAX31865 *sensor;
@@ -482,7 +569,7 @@ void CLIScreenManager::logMessage(const __FlashStringHelper *message, LogType se
 
     // Stampa il timestamp a 10 caratteri, padding a sinistra con zeri
     char timestamp[11];
-    snprintf(timestamp, sizeof(timestamp), "%4lu", (uint32_t)(millis() / 1000));
+    mini_udec_padded(timestamp, (uint32_t)(millis() / 1000), 4);
     ansi->print(timestamp);
     ansi->foreground(color);
     ansi->bold();
@@ -530,7 +617,7 @@ void CLIScreenManager::logMessage(const char *message, LogType severity)
 
     // Stampa il timestamp a 10 caratteri, padding a sinistra con zeri
     char timestamp[11];
-    snprintf(timestamp, sizeof(timestamp), "%4lu", (uint32_t)(millis() / 1000));
+    mini_udec_padded(timestamp, (uint32_t)(millis() / 1000), 4);
     ansi->print(timestamp);
     ansi->foreground(color);
     ansi->bold();
@@ -597,47 +684,6 @@ void CLIScreenManager::printProgressBar(uint8_t progress, uint8_t width, const _
     ansi->print("] ");
     ansi->print(progress);
     ansi->println("%");
-}
-
-void CLIScreenManager::printTable(const __FlashStringHelper *headers[], const __FlashStringHelper *data[][2], uint8_t rows, uint8_t cols)
-{
-    if (!ansi_enabled)
-        return;
-
-    // Stampa header
-    ansi->foreground(ansi->yellow);
-    ansi->bold();
-    for (uint8_t c = 0; c < cols; c++)
-    {
-        ansi->print(headers[c]);
-        if (c < cols - 1)
-            ansi->print("\t\t");
-    }
-    ansi->normal();
-    ansi->println();
-
-    printSeparator('-');
-
-    // Stampa dati
-    for (uint8_t r = 0; r < rows; r++)
-    {
-        for (uint8_t c = 0; c < cols; c++)
-        {
-            if (c == 0)
-            {
-                ansi->foreground(ansi->cyan);
-            }
-            else
-            {
-                ansi->foreground(ansi->white);
-            }
-            ansi->print(data[r][c]);
-            ansi->normal();
-            if (c < cols - 1)
-                ansi->print("\t\t");
-        }
-        ansi->println();
-    }
 }
 
 /**
@@ -753,7 +799,7 @@ void CLIScreenManager::printSeparator(char character)
 
 void CLIScreenManager::printFooter(bool failure)
 {
-    ansi->gotoXY(1, terminal_height - 2);
+    ansi->gotoXY(1, terminal_height - 3);
     printSeparator('-');
     ansi->foreground(ansi->yellow);
     ansi->print(F("Firmware v"));
@@ -771,5 +817,11 @@ void CLIScreenManager::printFooter(bool failure)
     }
     else
         // Istruzioni di navigazione
-        ansi->print(F("Navigazione: Valori (V) | Device (D) | Errori (E) | Calibrazione (C) | Log (L)"));
+        printMenuFooter();
+}
+
+void CLIScreenManager::printMenuFooter()
+{
+    ansi->gotoXY(1, terminal_height - 1);
+    ansi->print(F("Navigazione: Valori (V) | Device (D) | Errori (E) | Calibrazione (C) | Log (L)"));
 }

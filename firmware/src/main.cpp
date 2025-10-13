@@ -16,6 +16,7 @@
 #include <SPI.h>
 #include "config.h"
 #include <avr/wdt.h>
+#include <MAX31865_NonBlocking.h>
 
 // MyLib
 #include <scheduler.h>
@@ -23,6 +24,8 @@
 #include <PT100.h>
 #include <flow.h>
 #include <J1939Manager.h>
+#include <J1939_DM.h>
+#include <diagnostics.h>
 
 // 3rd parties lib
 #include <mcp_can.h>
@@ -33,6 +36,9 @@
 #include <can_messages.h>
 #include <McpCanAdapter.h>
 #include <dip_switch.h>
+#include <dtc.h>
+#include <EEPROM.h>
+#include <utils.h>
 
 /* CLI */
 CLIScreenManager cli = CLIScreenManager();
@@ -66,6 +72,7 @@ Scheduler scheduler = Scheduler();
 
 /* Node ID */
 uint8_t node_id;
+uint8_t severity = 0;
 
 bool CANbusOff = false;
 bool CANbusWarn = false;
@@ -75,16 +82,57 @@ bool HwFailure = true; // Assume HW failure until all init done
 HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
 CAN_Temperature TempMessage = CAN_Temperature();
 CAN_FilteredTemperatureAndFlow TempAndFlowMessage = CAN_FilteredTemperatureAndFlow();
+J1939_DM1Message DM1 = J1939_DM1Message(1000); // 1s interval
+
+/* Diagnostics */
+TFM100_DTC_Dict dtc_dict_instance = TFM100_DTC_Dict();
+Diagnostics DSM = Diagnostics(&dtc_dict_instance);
+
+// -----------------------------------------------------------------------------
+// Persistence hooks (default application implementation using AVR EEPROM)
+// These implement the required low-level write/read of raw bytes at a
+// logical offset. The library composes logical offsets starting at 0 for
+// diagnostics; we map them to physical EEPROM addresses by adding
+// DIAGNOSTICS_EEPROM_OFFSET.
+// -----------------------------------------------------------------------------
+void diag_save_to_persistent(uint16_t offset, const uint8_t *data, uint8_t length)
+{
+  uint16_t phys = (uint16_t)(DIAGNOSTICS_EEPROM_OFFSET + offset);
+  for (uint8_t i = 0; i < length; i++)
+  {
+    uint8_t v = data[i];
+    // EEPROM.update writes only if value differs, minimizing wear
+    EEPROM.update(phys + i, v);
+  }
+}
+
+bool diag_load_from_persistent(uint16_t offset, uint8_t *data, uint8_t length)
+{
+  uint16_t phys = (uint16_t)(DIAGNOSTICS_EEPROM_OFFSET + offset);
+  for (uint8_t i = 0; i < length; i++)
+  {
+    data[i] = EEPROM.read(phys + i);
+  }
+  return true; // read always succeeds (caller is responsible for magic validation)
+}
 
 // Forward declaration of J1939Descriptor is available via J1939Manager.h
 // Provide a simple error callback to forward J1939 manager errors to CLI
 static void j1939_on_error(const J1939Descriptor &desc)
 {
   char buf[80];
-  // Format PGN in hex with leading 0x
-  snprintf(buf, sizeof(buf), "J1939 TX ERROR PGN=0x%06lX ", (unsigned long)desc.pgn);
+  // Format PGN in hex with leading 0x using minimal formatter then append message
+  mini_hex6(buf, (unsigned long)desc.pgn); // produces 0xNNNNNN\0
+  // Append message text after the hex
+  char *p = buf + 8;
+  const char *msg = " J1939 TX ERROR";
+  while (*msg)
+    *p++ = *msg++;
+  *p = '\0';
   cli.logError(buf);
 }
+
+void update_errors();
 
 void setup()
 {
@@ -105,6 +153,9 @@ void setup()
   // Serial for CLI/diagnostics output
   Serial.begin(115200);
   cli.begin();
+
+  // If diagnostics EEPROM load failed during Diagnostics construction, flag the DTC
+  DSM.setRaw(DTC_DSMEepromFailure, !DSM.eepromLoadOk());
 
   // Compute node address from DIP switches (base + switch value)
   node_id = dip_switch_read() | NODE_ID_BASE;
@@ -132,6 +183,10 @@ void setup()
   // If any critical subsystem is not initialized, show hardware failure UI and reboot
   if (!mcp_normal || !supply_init || !return_init)
   {
+    DSM.setRaw(DTC_SupplyLineDeviceError, supply_init == false);
+    DSM.setRaw(DTC_ReturnLineDeviceError, return_init == false);
+    DSM.setRaw(DTC_CANBusDeviceError, mcp_normal == false);
+
     node_status = STOP;
     bool reboot_now = false;
     while (millis() < 60000 && !reboot_now)
@@ -139,6 +194,7 @@ void setup()
       // drawHardwareFailure returns true when user requests immediate reboot
       reboot_now = cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
       // Keep LED state machine ticking and allow scheduled tasks to run
+      severity = DSM.getMaxSeverity();
       ledIndicators.process(true);
       scheduler.run();
     }
@@ -161,6 +217,7 @@ void setup()
   j1939->registerMessage(&HBMessage);
   j1939->registerMessage(&TempMessage);
   j1939->registerMessage(&TempAndFlowMessage);
+  j1939->registerMessage(&DM1);
 
   // Schedule periodic PT100 measurements (driver triggers non-blocking measurement)
   scheduler.addTask([](uint32_t td)
@@ -176,8 +233,35 @@ void setup()
                     { cli.periodic(); },
                     1000);
 
+  // Periodic diagnostics update (check sensor errors, update DTC memory)
+  scheduler.addTask([](uint32_t td)
+                    { update_errors(); },
+                    1000);
+
   // All initialization succeeded, enter RUN state
   node_status = RUN;
+}
+
+void update_errors()
+{
+  // Supply Sensor Errors
+  DSM.setRaw(DTC_SupplyLineRefInHigh, supply_sensor.last_fault & MAX31865::FAULT_HIGHTHRESH_BIT);
+  DSM.setRaw(DTC_SupplyLineRefInLow, supply_sensor.last_fault & MAX31865::FAULT_LOWTHRESH_BIT);
+  DSM.setRaw(DTC_SupplyLineRtdInLow, supply_sensor.last_fault & MAX31865::FAULT_RTDINLOW_BIT);
+  DSM.setRaw(DTC_SupplyLineUOV, supply_sensor.last_fault & MAX31865::FAULT_OVUV_BIT);
+
+  // Return Sensor Errors
+  DSM.setRaw(DTC_ReturnLineRefInHigh, return_sensor.last_fault & MAX31865::FAULT_HIGHTHRESH_BIT);
+  DSM.setRaw(DTC_ReturnLineRefInLow, return_sensor.last_fault & MAX31865::FAULT_LOWTHRESH_BIT);
+  DSM.setRaw(DTC_ReturnLineRtdInLow, return_sensor.last_fault & MAX31865::FAULT_RTDINLOW_BIT);
+  DSM.setRaw(DTC_ReturnLineUOV, return_sensor.last_fault & MAX31865::FAULT_OVUV_BIT);
+
+  // CAN Bus Errors
+  DSM.setRaw(DTC_CANBusOff, CANbusOff);
+  DSM.setRaw(DTC_CANBusErrorPassive, CANbusWarn);
+
+  DSM.periodic_update();
+  severity = DSM.getMaxSeverity();
 }
 
 void loop()
