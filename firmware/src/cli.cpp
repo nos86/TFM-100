@@ -8,6 +8,8 @@
 #include <MAX31865_NonBlocking.h>
 #include <diagnostics.h>
 #include <utils.h>
+#include <energy.h>
+#include <power.h>
 
 // External variables
 extern PT100 supply_sensor; // main.cpp
@@ -17,6 +19,8 @@ extern Scheduler scheduler; // main.cpp
 extern uint8_t node_id;     // main.cpp
 extern MCP_CAN CAN0;        // main.cpp
 extern Diagnostics DSM;     // main.cpp
+extern Energy energyObj;    // main.cpp
+extern Power powerObj;      // main.cpp
 
 // Constructor
 CLIScreenManager::CLIScreenManager(Stream *stream, uint16_t width, uint16_t height)
@@ -284,18 +288,17 @@ void CLIScreenManager::drawRealTimeSignals(bool full_update)
     ansi->normal();
     ansi->bold();
     ansi->gotoXY(18, 9);
-    ftostr(buf, power, 1);
+    ftostr(buf, powerObj.getPower(), 1);
     ansi->print(buf);
     ansi->print(" kW   ");
-    printProgressBar((uint8_t)power_percentage, 30);
-    ansi->print("  ");
+    printProgressBar((uint8_t)powerObj.getPowerPercent(), 30);
     ansi->normal();
     ansi->gotoXY(27, 13);
-    ftostr(buf, energy_24h, 2);
+    ftostr(buf, energyObj.getEnergy24h(), 2);
     ansi->print(buf);
     ansi->print(" kWh   ");
     ansi->gotoXY(17, 14);
-    ftostr(buf, energy_total / 1000.0, 2);
+    ftostr(buf, energyObj.getEnergyTotal() / 1000.0, 2);
     ansi->print(buf);
     ansi->print(" MWh   ");
     ansi->gotoXY(9, 16);
@@ -683,7 +686,7 @@ void CLIScreenManager::printProgressBar(uint8_t progress, uint8_t width, const _
     ansi->normal();
     ansi->print("] ");
     ansi->print(progress);
-    ansi->println("%");
+    ansi->println("%   ");
 }
 
 /**

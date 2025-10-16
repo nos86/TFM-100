@@ -34,4 +34,6 @@
 
 // EEPROM layout
 // First byte reserved for diagnostics storage start (logical offset)
+#define POWER_EEPROM_OFFSET 0x1A
+#define ENERGY_EEPROM_OFFSET 0x20
 #define DIAGNOSTICS_EEPROM_OFFSET 0x40

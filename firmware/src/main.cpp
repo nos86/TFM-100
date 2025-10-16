@@ -36,8 +36,9 @@
 #include <McpCanAdapter.h>
 #include <dip_switch.h>
 #include <dtc.h>
-#include <EEPROM.h>
 #include <utils.h>
+#include <energy.h>
+#include <power.h>
 #include <diag_comm.h>
 
 /* CLI */
@@ -48,6 +49,8 @@ PT100 return_sensor = PT100(RETURN_CS);
 
 /* Flow Sensor Variables */
 Flow flowObj = Flow(FLOW_TICKS_PER_LITER);
+Energy energyObj = Energy();
+Power powerObj = Power();
 
 /* Set-up J1939 Transport Layer */
 // Allocation of CAN controller and adapter
@@ -159,6 +162,7 @@ void setup()
 
   // If diagnostics EEPROM load failed during Diagnostics construction, flag the DTC
   DSM.setRaw(DTC_DSMEepromFailure, !DSM.eepromLoadOk());
+  DSM.setRaw(DTC_PowerEepromFailure, !powerObj.eepromLoadOk());
 
   // Compute node address from DIP switches (base + switch value)
   node_id = dip_switch_read() | NODE_ID_BASE;
@@ -212,10 +216,18 @@ void setup()
   j1939 = new J1939Manager(canAdapter, j1939_cbs);
   j1939->begin(node_id);
 
-  // Initialize flow sensor (callback currently a stub)
-  flowObj.begin([](float flow) {});
+  // // Initialize flow sensor (callback currently a stub)
+  flowObj.begin([](float flow)
+                {
+                // Increase energy counters based on last measured temperatures
+                energyObj.increase_energy(supply_sensor.last_temperature,
+                                          return_sensor.last_temperature,
+                                          1.0f / FLOW_TICKS_PER_LITER);
+                powerObj.updatePower(supply_sensor.last_temperature,
+                                      return_sensor.last_temperature,
+                                      flow); });
 
-  // Add message objects to J1939 manager
+  // // Add message objects to J1939 manager
   j1939->registerMessage(&HBMessage);
   j1939->registerMessage(&TempMessage);
   j1939->registerMessage(&TempAndFlowMessage);
