@@ -56,7 +56,12 @@ public:
     void send_param(const char *key, const char *value);                                     // P;key;value\n
     void send_log(LogLevel level, const char *message);                                      // L;level;message\n
     void send_diag_count(uint8_t count);                                                     // D;count
-    void send_diag_info(uint8_t idx, uint32_t spn, uint8_t fmi, uint8_t status, uint8_t oc); // D;index;SPN-FMI;status;OC
+    void send_diag_info(uint8_t idx,
+                        const char *description,
+                        uint32_t spn,
+                        uint8_t fmi,
+                        const char *status,
+                        uint8_t oc); // D;index;SPN-FMI;status;OC
 
     void send_calibration_status(uint8_t id, char type, uint8_t value);
 

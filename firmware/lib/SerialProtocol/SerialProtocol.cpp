@@ -260,11 +260,10 @@ void SerialProtocol::send_log(LogLevel level, const char *message)
     size_t total = 1 + 1 + 1 + 1 + strlen(message) + 1; // 5 + m
     if (total >= LINE_BUFFER_SIZE)
         return;
-    strcpy(line_buffer, "L;");
-    strcat(line_buffer, (const char *)&level);
-    strcat(line_buffer, ";");
+    strcpy(line_buffer, "L;x;");
+    line_buffer[2] = (char)level;
     strcat(line_buffer, message);
-    strcat(line_buffer, "\n");
+    strcat(line_buffer, "\n\r");
     emit(line_buffer, strlen(line_buffer));
 }
 
@@ -277,20 +276,25 @@ void SerialProtocol::send_diag_count(uint8_t count)
 
     strcpy(line_buffer, "D;");
     strcat(line_buffer, numbuf);
-    strcat(line_buffer, "\n");
+    strcat(line_buffer, "\n\r");
     emit(line_buffer, strlen(line_buffer));
 }
 
-void SerialProtocol::send_diag_info(uint8_t idx, uint32_t spn, uint8_t fmi, uint8_t status, uint8_t oc)
+void SerialProtocol::send_diag_info(uint8_t idx, const char *description, uint32_t spn, uint8_t fmi, const char *status, uint8_t oc)
 {
+    // D;index;Description;SPN-FMI;status;OC
     char numbuf[9]; // 8 HEX Digit + NUL
-    size_t total = 1 + 1 + 3 + 1 + 8 + 1 + 2 + 1 + 2 + 1 + 3 + 1;
+    size_t total = 1 + 1 + 3 + 1 + strlen(description) + 1 + 8 + 1 + 2 + 1 + 2 + 1 + 3 + 1;
     if (total >= LINE_BUFFER_SIZE)
         return;
     strcpy(line_buffer, "D;");
     // INDEX
     itoa(idx, numbuf, 10);
     strcat(line_buffer, numbuf);
+    strcat(line_buffer, ";");
+
+    // DESCRIPTION
+    strcat(line_buffer, description);
     strcat(line_buffer, ";");
 
     // SPN-FMI
@@ -302,14 +306,13 @@ void SerialProtocol::send_diag_info(uint8_t idx, uint32_t spn, uint8_t fmi, uint
     strcat(line_buffer, ";");
 
     // status
-    itoa(status, numbuf, 10);
-    strcat(line_buffer, numbuf);
+    strcat(line_buffer, status);
     strcat(line_buffer, ";");
 
     // oc
     itoa(oc, numbuf, 10);
     strcat(line_buffer, numbuf);
-    strcat(line_buffer, "\n");
+    strcat(line_buffer, "\n\r");
     emit(line_buffer, strlen(line_buffer));
 }
 
@@ -322,7 +325,7 @@ void SerialProtocol::send_calibration_status(uint8_t id, char type, uint8_t valu
 
     strcpy(line_buffer, "C;");
     strcat(line_buffer, numbuf);
-    strcat(line_buffer, "\n");
+    strcat(line_buffer, "\n\r");
     emit(line_buffer, strlen(line_buffer));
 }
 
