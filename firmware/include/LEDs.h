@@ -25,12 +25,9 @@ public:
      * @brief Progress the LED state machine.
      *
      * This method should be called frequently (e.g., every main loop
-     * iteration). When `HwFailure` is true the LEDs use a special hardware
-     * failure indication pattern.
-     *
-     * @param HwFailure If true, force the hardware-failure LED pattern.
+     * iteration).
      */
-    void process(bool HwFailure = false);
+    void process();
 
 private:
     uint8_t LedRedPin;   /**< Pin connected to the red LED. */

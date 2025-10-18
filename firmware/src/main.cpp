@@ -247,7 +247,7 @@ void setup()
       // drawHardwareFailure returns true when user requests immediate reboot
       // Keep LED state machine ticking and allow scheduled tasks to run
       severity = DSM.getMaxSeverity();
-      ledIndicators.process(true);
+      ledIndicators.process();
       scheduler.run();
     }
     // Force reboot via watchdog if recovery is not requested
