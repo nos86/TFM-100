@@ -39,6 +39,7 @@
 #include <dtc.h>
 #include <EEPROM.h>
 #include <utils.h>
+#include <SerialProtocol.h>
 
 /* CLI */
 CLIScreenManager cli = CLIScreenManager();
@@ -78,6 +79,8 @@ bool CANbusOff = false;
 bool CANbusWarn = false;
 bool HwFailure = true; // Assume HW failure until all init done
 
+// --- Serial protocol instance ---
+SerialProtocol comm;
 /* CAN Messages */
 HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
 CAN_Temperature TempMessage = CAN_Temperature();
@@ -152,7 +155,7 @@ void setup()
 
   // Serial for CLI/diagnostics output
   Serial.begin(115200);
-  cli.begin();
+  comm.begin();
 
   // If diagnostics EEPROM load failed during Diagnostics construction, flag the DTC
   DSM.setRaw(DTC_DSMEepromFailure, !DSM.eepromLoadOk());
@@ -223,14 +226,16 @@ void setup()
   scheduler.addTask([](uint32_t td)
                     {
                       if (!supply_sensor.triggerMeasurement())
-                        cli.logError("Unable to read SUPPLY");
+                        comm.send_log(SerialProtocol::LOG_ERROR, "Unable to read SUPPLY");
                       if (!return_sensor.triggerMeasurement())
-                        cli.logError("Unable to read RETURN"); },
+                        comm.send_log(SerialProtocol::LOG_ERROR, "Unable to read RETURN"); },
                     PT100_SAMPLE_RATE);
 
-  // Periodic CLI housekeeping (screens, input processing)
+  // Periodic datastream
   scheduler.addTask([](uint32_t td)
-                    { cli.periodic(); },
+                    { comm.send_param("ST", supply_sensor.average_temperature, 1);
+                      comm.send_param("RT", return_sensor.average_temperature, 1);
+                      comm.send_param("WF", (uint32_t)flowObj.getFlow()); },
                     1000);
 
   // Periodic diagnostics update (check sensor errors, update DTC memory)
@@ -287,8 +292,16 @@ void loop()
   return_sensor.process();
   flowObj.process();
 
-  // CLI processing (screen refresh, input handling)
-  cli.process();
+  // Read from Serial and feed protocol (non-blocking)
+  while (Serial.available() > 0)
+  {
+    int c = Serial.read();
+    if (c >= 0)
+    {
+      uint8_t ch = (uint8_t)c;
+      comm.feed(&ch, 1);
+    }
+  }
 
   // Set node mode depending on flow present
   node_status = flowObj.isFlowing() ? RUN : SLEEP;
