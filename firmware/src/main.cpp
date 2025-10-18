@@ -32,17 +32,15 @@
 
 // Include Headers
 #include <status.h>
-#include <cli.h>
 #include <can_messages.h>
 #include <McpCanAdapter.h>
 #include <dip_switch.h>
 #include <dtc.h>
 #include <EEPROM.h>
 #include <utils.h>
-#include <SerialProtocol.h>
+#include <diag_comm.h>
 
 /* CLI */
-CLIScreenManager cli = CLIScreenManager();
 
 /* Temperature Sensors Variables */
 PT100 supply_sensor = PT100(SUPPLY_CS);
@@ -71,6 +69,8 @@ LEDs ledIndicators = LEDs(LED_RED, LED_GREEN);
 // Scheduler
 Scheduler scheduler = Scheduler();
 
+DiagComm diagComm = DiagComm();
+
 /* Node ID */
 uint8_t node_id;
 uint8_t severity = 0;
@@ -79,8 +79,59 @@ bool CANbusOff = false;
 bool CANbusWarn = false;
 bool HwFailure = true; // Assume HW failure until all init done
 
-// --- Serial protocol instance ---
-SerialProtocol comm;
+// serial writer provided below as a free function
+
+// Mock/hook prototypes for commands handled via protocol
+// These are lightweight implementations — replace with real hardware hooks in app.
+void apply_calibration(uint8_t id, const char *value, uint8_t vlen)
+{
+  // Example: log calibration application
+  char buf[48];
+  size_t n = 0;
+  buf[n++] = 'C';
+  buf[n++] = ';';
+  // id
+  if (id == 0)
+  {
+    buf[n++] = '0';
+  }
+  else
+  {
+    buf[n++] = '0' + (id % 10);
+  }
+  buf[n++] = ';';
+  // copy value
+  for (uint8_t i = 0; i < vlen && n < (sizeof(buf) - 2); i++)
+    buf[n++] = value[i];
+  buf[n++] = '\n';
+  Serial.write((const uint8_t *)buf, n);
+}
+
+// Mock remote read/write for MCP and MAX devices
+void mcp_read(uint8_t chip, uint32_t addr, uint8_t len)
+{
+  // produce dummy data (incrementing)
+  // uint8_t sample[8];
+  // for (uint8_t i = 0; i < len && i < 8; i++)
+  //   sample[i] = (uint8_t)(addr + i);
+  // // comm.send_v_dump(chip, addr, sample, len);
+}
+
+void mcp_write(uint8_t chip, uint32_t addr, const uint8_t *data, uint8_t dlen)
+{
+  // Acknowledge by echoing back V dump
+  // comm.send_v_dump(chip, addr, data, dlen);
+}
+
+void do_reboot()
+{
+  // Graceful message then watchdog
+  // comm.send_log(SerialProtocol::LOG_INFO, "Rebooting");
+  wdt_enable(WDTO_15MS);
+  while (1)
+    ;
+}
+
 /* CAN Messages */
 HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
 CAN_Temperature TempMessage = CAN_Temperature();
@@ -132,7 +183,7 @@ static void j1939_on_error(const J1939Descriptor &desc)
   while (*msg)
     *p++ = *msg++;
   *p = '\0';
-  cli.logError(buf);
+  diagComm.send_error(buf);
 }
 
 void update_errors();
@@ -154,8 +205,7 @@ void setup()
   /* Configure microcontroller/peripherals. */
 
   // Serial for CLI/diagnostics output
-  Serial.begin(115200);
-  comm.begin();
+  diagComm.begin(115200);
 
   // If diagnostics EEPROM load failed during Diagnostics construction, flag the DTC
   DSM.setRaw(DTC_DSMEepromFailure, !DSM.eepromLoadOk());
@@ -195,7 +245,6 @@ void setup()
     while (millis() < 60000 && !reboot_now)
     {
       // drawHardwareFailure returns true when user requests immediate reboot
-      reboot_now = cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
       // Keep LED state machine ticking and allow scheduled tasks to run
       severity = DSM.getMaxSeverity();
       ledIndicators.process(true);
@@ -226,17 +275,12 @@ void setup()
   scheduler.addTask([](uint32_t td)
                     {
                       if (!supply_sensor.triggerMeasurement())
-                        comm.send_log(SerialProtocol::LOG_ERROR, "Unable to read SUPPLY");
+                        diagComm.send_error("Unable to read SUPPLY");
                       if (!return_sensor.triggerMeasurement())
-                        comm.send_log(SerialProtocol::LOG_ERROR, "Unable to read RETURN"); },
+                        diagComm.send_error("Unable to read RETURN"); },
                     PT100_SAMPLE_RATE);
 
   // Periodic datastream
-  scheduler.addTask([](uint32_t td)
-                    { comm.send_param("ST", supply_sensor.average_temperature, 1);
-                      comm.send_param("RT", return_sensor.average_temperature, 1);
-                      comm.send_param("WF", (uint32_t)flowObj.getFlow()); },
-                    1000);
 
   // Periodic diagnostics update (check sensor errors, update DTC memory)
   scheduler.addTask([](uint32_t td)
@@ -292,16 +336,7 @@ void loop()
   return_sensor.process();
   flowObj.process();
 
-  // Read from Serial and feed protocol (non-blocking)
-  while (Serial.available() > 0)
-  {
-    int c = Serial.read();
-    if (c >= 0)
-    {
-      uint8_t ch = (uint8_t)c;
-      comm.feed(&ch, 1);
-    }
-  }
+  diagComm.process(millis());
 
   // Set node mode depending on flow present
   node_status = flowObj.isFlowing() ? RUN : SLEEP;
