@@ -63,6 +63,10 @@ void Diagnostics::setRaw(uint8_t dtc_idx, bool raw)
     dtc_set_debounce(&errors[position], 0);
     // Use helper to set state and persist
     setStateAndPersist(position, DTC_PENDING);
+    // OnEntry callback is triggered by setStateAndPersist
+    // notify count changed if increased
+    if (onCountChangedCb)
+        onCountChangedCb(numberOfErrors());
     return;
 }
 
@@ -143,6 +147,8 @@ void Diagnostics::clear()
     }
     // After clearing, ensure EEPROM reflects empty memory
     saveToEEPROM();
+    if (onCountChangedCb)
+        onCountChangedCb(numberOfErrors());
 }
 
 /**
@@ -254,6 +260,8 @@ void Diagnostics::setStateAndPersist(uint8_t index, dtc_state_t newState)
     {
         saveEntryToEEPROM(index);
     }
+    if (onEntryChangedCb)
+        onEntryChangedCb(index, &errors[index]);
 }
 
 // Persist diagnostics memory to EEPROM if enabled
