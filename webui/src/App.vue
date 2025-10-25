@@ -22,6 +22,18 @@
             />
           </v-container>
         </v-col>
+        <v-col
+          cols="12"
+          md="6"
+          lg="7"
+        >
+          <v-container class="py-6">
+            <DiagnosticsCard
+              :faults="faults"
+              @reset_dsm="onResetDsm"
+            />
+          </v-container>
+        </v-col>
       </v-row>
     </v-main>
     <LogFooter
@@ -35,8 +47,11 @@
 import { ref, onMounted } from 'vue'
 import LogFooter from './components/LogFooter.vue';
 import TelemetryCard from './components/TelemetryCard.vue';
-const logFooter = ref(null);
+import DiagnosticsCard from './components/DiagnosticsCard.vue';
 const log_list = ref([])
+const faults = ref([
+  { name: "DTC_EepromCorrupted", spn: "12F", fmi: "F", oc: 5, status: "ACTIVE" }
+])
 // helper - pick random level/message
 function randLevel() {
   const list = ['DEBUG', 'INFO', 'WARN', 'ERROR']
@@ -86,24 +101,15 @@ const powerPerc = ref(12)
 const energy24hKWh = ref(18.2)
 const energyTotalKWh = ref(253.7)
 
-// Example small updater to simulate changes
-// onMounted(() => {
-//   setInterval(() => {
-//     // simple random walk simulations
-//     tempMandataC.value = Math.max(20, Math.min(80, tempMandataC.value + (Math.random() - 0.5)))
-//     tempRitornoC.value = Math.max(15, Math.min(70, tempRitornoC.value + (Math.random() - 0.5)))
-//     waterFlowLh.value = Math.max(0, Math.min(2000, waterFlowLh.value + (Math.random() - 0.5) * 10))
-//     powerKW.value = Math.max(0, Math.min(maxPowerKW.value, powerKW.value + (Math.random() - 0.5)))
-//     // integrate energy roughly
-//     energy24hKWh.value = Math.max(0, energy24hKWh.value + powerKW.value / 3600)
-//     energyTotalKWh.value = Math.max(0, energyTotalKWh.value + powerKW.value / 3600)
-//   }, 1000)
-// })
 
 function onReset24h() {
   energy24hKWh.value = 0
 }
 function onResetTotal() {
   energyTotalKWh.value = 0
+}
+
+function onResetDsm() {
+  faults.value = []
 }
 </script>
