@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable",
+      "ScriptHost"
+    ],
+    "types": [
+      "vite/client",
+      "w3c-web-serial"
+    ],
+    "baseUrl": "./",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "preserve"
+  },
+  "include": [
+    "src/**/*",
+    "env.d.ts"
+  ]
+}
