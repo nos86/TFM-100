@@ -2,11 +2,25 @@
   <v-card
     variant="elevated"
     rounded="lg"
-    prepend-icon="mdi-stethoscope"
-    title="Diagnostica"
     class="pa-4"
   >
-    <template #append>
+
+    <v-card-title class="d-flex align-center">
+      <span class="text-h6">
+        <v-icon
+          left
+          class="mr-2"
+        >mdi-stethoscope</v-icon>
+        Diagnostica
+      </span>
+      <v-chip
+        v-if="numberOfActiveFaults > 0"
+        class="ml-2"
+        color="pink"
+        density="comfortable"
+      >{{ numberOfActiveFaults }}</v-chip>
+
+      <v-spacer></v-spacer>
       <v-btn
         icon
         size="small"
@@ -16,34 +30,58 @@
       >
         <v-icon>{{ collapsed ? 'mdi-chevron-down' : 'mdi-chevron-up' }}</v-icon>
       </v-btn>
-    </template>
+    </v-card-title>
 
     <v-card-text v-if="!collapsed">
-      <v-table v-if="props.faults.length > 0">
-        <thead>
-          <tr>
-            <th class="text-left">
-              Name
-            </th>
-            <th class="text-center">
-              Code
-            </th>
-            <th class="text-center">Stato</th>
-            <th class="text-center">Occorrenze</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
+      <template v-if="props.faults.length > 0">
+        <v-table v-if="!isMobile">
+          <thead>
+            <tr>
+              <th class="text-left">
+                Name
+              </th>
+              <th class="text-center">
+                Code
+              </th>
+              <th class="text-center">Stato</th>
+              <th class="text-center">Occorrenze</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="item in props.faults"
+              :key="item.name"
+            >
+              <td>{{ item.name }}</td>
+              <td class="text-center"><v-chip variant="outlined">{{ item.spn }}-{{ item.fmi }}</v-chip></td>
+              <td class="text-center"><v-chip :color="getColorForStatus(item.status)">{{ item.status }}</v-chip></td>
+              <td class="text-center">{{ item.oc }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+        <v-list
+          lines="two"
+          v-else
+        >
+          <v-list-item
             v-for="item in props.faults"
             :key="item.name"
+            class="px-0"
           >
-            <td>{{ item.name }}</td>
-            <td class="text-center"><v-chip variant="outlined">{{ item.spn }}-{{ item.fmi }}</v-chip></td>
-            <td class="text-center"><v-chip :color="getColorForStatus(item.status)">{{ item.status }}</v-chip></td>
-            <td class="text-center">{{ item.oc }}</td>
-          </tr>
-        </tbody>
-      </v-table>
+            <v-list-item-title class="font-weight-bold d-flex text-center">
+              {{ item.name }}
+              <v-spacer />
+              <v-chip
+                :color="getColorForStatus(item.status)"
+                class="mr-2 text-caption"
+              >{{ item.status }}</v-chip>
+            </v-list-item-title>
+            <v-list-item-subtitle>
+              Occorrenze: {{ item.oc }}
+            </v-list-item-subtitle>
+          </v-list-item>
+        </v-list>
+      </template>
       <v-row
         v-else
         justify="center"
@@ -78,6 +116,10 @@ const props = withDefaults(defineProps<{
   faults: Array<{ name: string; spn: number; fmi: number; oc: number; status: string }>;
 }>(), {
   faults: () => [],
+});
+
+const numberOfActiveFaults = computed(() => {
+  return props.faults.filter(fault => fault.status === "ACTIVE").length;
 });
 
 const emits = defineEmits<{

@@ -8,7 +8,15 @@
           lg=5
         >
 
-          <v-container class="py-6">
+          <v-container class="pt-6">
+            <SerialCard
+              :name="deviceName"
+              :node-id="nodeId"
+              :status="nodeStatusDescription"
+              :firmware-version="firmwareVersion"
+            />
+          </v-container>
+          <v-container class="pt-6">
             <TelemetryCard
               :temp-mandata-c="tempMandataC"
               :temp-ritorno-c="tempRitornoC"
@@ -27,7 +35,7 @@
           md="6"
           lg="7"
         >
-          <v-container class="py-6">
+          <v-container class="pt-6">
             <DiagnosticsCard
               :faults="faults"
               @reset_dsm="onResetDsm"
@@ -39,67 +47,49 @@
     <LogFooter
       ref="appFooter"
       :logs="log_list"
+      :show-at-beginning="false"
     />
   </v-app>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import LogFooter from './components/LogFooter.vue';
 import TelemetryCard from './components/TelemetryCard.vue';
 import DiagnosticsCard from './components/DiagnosticsCard.vue';
+import SerialCard from './components/SerialCard.vue';
+import { useWebSerial } from './plugins/webserial/composable';
 const log_list = ref([])
-const faults = ref([
-  { name: "DTC_EepromCorrupted", spn: "12F", fmi: "F", oc: 5, status: "ACTIVE" }
-])
+const faults = ref([])
 // helper - pick random level/message
 function randLevel() {
   const list = ['DEBUG', 'INFO', 'WARN', 'ERROR']
   return list[Math.floor(Math.random() * list.length)]
 }
 
-function randMessage() {
-  const samples = [
-    'Connected to device',
-    'Temperature reading: 23.5 C',
-    'Port opened',
-    'CAN bus timeout',
-    'Received heartbeat',
-    'Warning: sensor calibration needed',
-    'Error parsing message',
-  ]
-  return samples[Math.floor(Math.random() * samples.length)]
-}
-
-// try to access AppFooter via template ref on root component
-function tryAttachDemo() {
-  try {
-
-    // generate logs
-    setInterval(() => {
-      log_list.value.push({ level: randLevel(), message: randMessage(), dt: new Date() })
-    }, 2000)
-
-    return true
-  } catch (e) {
-    return false
-  }
-}
-
-// small retry loop to wait until child refs are ready
-let tries = 0
-const t = setInterval(() => {
-  if (tryAttachDemo() || tries++ > 10) clearInterval(t)
-}, 300)
-
 // Demo reactive data (in real app, values come from main/serial)
-const tempMandataC = ref(42.3)
-const tempRitornoC = ref(38.9)
-const waterFlowLh = ref(720)
-const powerKW = ref(4.6)
-const powerPerc = ref(12)
-const energy24hKWh = ref(18.2)
-const energyTotalKWh = ref(253.7)
+const deviceName = ref(null)
+const firmwareVersion = ref(null)
+const nodeId = ref(null)
+
+const tempMandataC = ref(null)
+const tempRitornoC = ref(null)
+const waterFlowLh = ref(null)
+const powerKW = ref(null)
+const powerPerc = ref(null)
+const energy24hKWh = ref(null)
+const energyTotalKWh = ref(null)
+const nodeStatus = ref(null)
+
+const nodeStatusDescription = computed(() => {
+  switch (nodeStatus.value) {
+    case 0: return "SETUP"
+    case 1: return "RUN"
+    case 127: return "SLEEP"
+    case 255: return "STOP"
+    default: return String(nodeStatus.value ?? "undefined")
+  }
+})
 
 
 function onReset24h() {
@@ -112,4 +102,65 @@ function onResetTotal() {
 function onResetDsm() {
   faults.value = []
 }
+
+
+// Subscribe to serial events and push to log footer
+const serial = useWebSerial()
+const off = []
+onMounted(() => {
+  off.push(serial.onLine((line) => {
+    const data = line.split(";")
+    switch (data[0]) {
+      case "L":
+        const logLevelMap = {
+          D: 'DEBUG',
+          E: 'ERROR',
+          W: 'WARNING',
+          I: 'INFO'
+        };
+        const level = logLevelMap[data[1]] || 'INFO';
+        log_list.value.push({ level, message: data[2], dt: new Date() })
+        break;
+      case "P":
+        switch (data[1]) {
+          case "ST": tempMandataC.value = parseFloat(data[2]); break;
+          case "RT": tempRitornoC.value = parseFloat(data[2]); break;
+          case "WF": waterFlowLh.value = parseFloat(data[2]); break;
+          case "ET": energyTotalKWh.value = parseFloat(data[2]); break;
+          case "E24": energy24hKWh.value = parseFloat(data[2]); break;
+          case "P%": powerPerc.value = parseFloat(data[2]); break;
+          case "PWR": powerKW.value = parseFloat(data[2]); break;
+          case "NS": nodeStatus.value = parseInt(data[2]); break;
+          case "FW": deviceName.value = data[2]; break;
+          case "FV": firmwareVersion.value = data[2]; break;
+          case "ID": nodeId.value = parseInt(data[2]); break;
+          default: console.warn("Unknown parameter: " + data[1] + "=" + data[2]); break;
+        }
+        break;
+      case "D":
+        if (data.length == 2) {
+          faults.value = []
+        } else {
+          const index = parseInt(data[1])
+          faults.value[index] = {
+            name: data[2],
+            spn: data[3].split("-")[0],
+            fmi: data[3].split("-")[1],
+            oc: parseInt(data[5]),
+            status: data[4]
+          }
+        }
+        break;
+      default:
+        log_list.value.push({ level: 'DEBUG', message: line, dt: new Date() })
+        break;
+    }
+
+  }))
+  off.push(serial.onBytes((bytes) => {
+    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ')
+    log_list.value.push({ level: 'DEBUG', message: hex, dt: new Date() })
+  }))
+})
+onBeforeUnmount(() => { off.forEach(fn => fn()) })
 </script>
