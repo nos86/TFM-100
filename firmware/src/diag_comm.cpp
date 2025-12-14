@@ -16,6 +16,10 @@ void DiagComm::process(uint32_t td)
         clientConnected = true;
         // Client just connected
         comm.send_log(SerialProtocol::LOG_INFO, "Sending complete diagnostics memory");
+        comm.send_param("FW", "TFM-100");
+        comm.send_param("FV", (uint32_t)FIRMWARE_VERSION);
+        comm.send_param("ID", (uint32_t)node_id);
+        periodically_update();
         send_complete_diagnostics();
     }
     else if ((Serial.dtr() == LOW) and clientConnected)
@@ -33,6 +37,18 @@ void DiagComm::process(uint32_t td)
             comm.feed(&ch, 1);
         }
     }
+}
+
+void DiagComm::periodically_update()
+{
+    comm.send_param("ST", supply_sensor.average_temperature, 1);
+    comm.send_param("RT", return_sensor.average_temperature, 1);
+    comm.send_param("WF", flowObj.getFlow(), 1);
+    comm.send_param("E24", 0.0f, 1);
+    comm.send_param("ET", 0.0f, 1);
+    comm.send_param("P%", 0.0f, 1);
+    comm.send_param("PWR", 0.0f, 1);
+    comm.send_param("NS", (uint32_t)node_status);
 }
 
 void DiagComm::send_complete_diagnostics()

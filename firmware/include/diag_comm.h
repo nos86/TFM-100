@@ -5,10 +5,16 @@
 
 #include "diagnostics.h"
 #include "PT100.h"
+#include "flow.h"
+#include "status.h"
+#include "config.h"
 
 extern Diagnostics DSM;
 extern PT100 supply_sensor;
 extern PT100 return_sensor;
+extern Flow flowObj;
+extern NodeStatus_t node_status;
+extern uint8_t node_id;
 
 class DiagComm
 {
@@ -49,6 +55,7 @@ public:
     }
 
     void process(uint32_t td);
+    void periodically_update();
 
     bool isClientConnected() const { return clientConnected; }
 
