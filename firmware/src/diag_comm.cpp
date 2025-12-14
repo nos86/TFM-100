@@ -86,8 +86,8 @@ void DiagComm::onDiagnosticsEntryChangeInstance(uint8_t index, const dtc_history
     uint32_t spn = 0;
     uint8_t fmi = 0;
     const char *status = "UNKNOWN";
-    dtc_dict_instance.getSPN(index, spn);
-    dtc_dict_instance.getFMI(index, fmi);
+    dtc_dict_instance.getSPN(entry->dtc_idx, spn);
+    dtc_dict_instance.getFMI(entry->dtc_idx, fmi);
     uint8_t oc = entry->occurrence;
     switch (dtc_get_state(entry))
     {
@@ -110,5 +110,5 @@ void DiagComm::onDiagnosticsEntryChangeInstance(uint8_t index, const dtc_history
         status = "UNKNOWN";
         break;
     }
-    comm.send_diag_info(index, dtc_dict_instance.getName(index), spn, fmi, status, oc);
+    comm.send_diag_info(index, dtc_dict_instance.getName(entry->dtc_idx), spn, fmi, status, oc);
 }

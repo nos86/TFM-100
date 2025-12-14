@@ -79,9 +79,9 @@ const dtc_entity_t dtc_dict_entries[] PROGMEM = {
     {442, 5, DTC_ReturnLineUOV_, 5, red_lamp_state_t::FLASHING},            // DTC_ReturnLineUOV
     {442, 23, DTC_ReturnLineDeviceError_, 0, red_lamp_state_t::FLICKERING}, // DTC_ReturnLineDeviceError
 
-    {639, 12, DTC_CANBusOff_, 5, red_lamp_state_t::THREE_BLINKS},         // DTC_CANBusOff
-    {639, 2, DTC_CANBusErrorPassive_, 5, red_lamp_state_t::THREE_BLINKS}, // DTC_CANBusErrorPassive
-    {639, 23, DTC_CANBusDeviceError_, 0, red_lamp_state_t::FLICKERING},   // DTC_CANBusDeviceError
+    {639, 12, DTC_CANBusOff_, 5, red_lamp_state_t::THREE_BLINKS},       // DTC_CANBusOff
+    {639, 2, DTC_CANBusErrorPassive_, 5, red_lamp_state_t::SOLID},      // DTC_CANBusErrorPassive
+    {639, 23, DTC_CANBusDeviceError_, 0, red_lamp_state_t::FLICKERING}, // DTC_CANBusDeviceError
 
     // Add more DTC definitions as needed
 };
