@@ -249,7 +249,7 @@ void SerialProtocol::send_param(const char *key, const char *value)
     strcat(line_buffer, key);
     strcat(line_buffer, ";");
     strcat(line_buffer, value);
-    strcat(line_buffer, "\n");
+    strcat(line_buffer, "\n\r");
     emit(line_buffer, strlen(line_buffer));
 }
 
