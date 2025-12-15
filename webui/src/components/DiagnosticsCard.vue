@@ -49,8 +49,8 @@
           </thead>
           <tbody>
             <tr
-              v-for="item in props.faults"
-              :key="item.name"
+              v-for="(item, index) in props.faults"
+              :key="index"
             >
               <td>{{ item.name }}</td>
               <td class="text-center"><v-chip variant="outlined">{{ item.spn }}-{{ item.fmi }}</v-chip></td>
@@ -64,8 +64,8 @@
           v-else
         >
           <v-list-item
-            v-for="item in props.faults"
-            :key="item.name"
+            v-for="(item, index) in props.faults"
+            :key="index"
             class="px-0"
           >
             <v-list-item-title class="font-weight-bold d-flex text-center">

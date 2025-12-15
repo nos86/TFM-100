@@ -139,8 +139,28 @@ onMounted(() => {
         break;
       case "D":
         if (data.length == 2) {
-          faults.value = []
+          // D;count - Update array size: keep existing entries, add/remove placeholders as needed
+          const newCount = parseInt(data[1])
+          const oldCount = faults.value.length
+          
+          if (newCount > oldCount) {
+            // Add placeholders for new entries
+            for (let i = oldCount; i < newCount; i++) {
+              faults.value[i] = {
+                name: "UNKNOWN",
+                spn: "0",
+                fmi: "0",
+                oc: 0,
+                status: "ACTIVE"
+              }
+            }
+          } else if (newCount < oldCount) {
+            // Remove entries beyond newCount
+            faults.value = faults.value.slice(0, newCount)
+          }
+          // If newCount == oldCount, do nothing (no change in size)
         } else {
+          // D;index;description;SPN-FMI;status;OC - Replace entry with actual DTC
           const index = parseInt(data[1])
           faults.value[index] = {
             name: data[2],
