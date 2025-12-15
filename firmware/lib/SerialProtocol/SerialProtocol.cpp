@@ -13,7 +13,7 @@
 #endif
 
 SerialProtocol::SerialProtocol()
-    : rx_index(0), cb_calibration(NULL), cb_read(NULL), cb_write(NULL), cb_reboot(NULL), writer(NULL)
+    : rx_index(0), cb_calibration(NULL), cb_read(NULL), cb_write(NULL), cb_reboot(NULL), cb_erase_diagnostics(NULL), writer(NULL)
 {
 }
 
@@ -205,6 +205,19 @@ void SerialProtocol::process_line(const char *line, size_t len)
     {
         if (cb_reboot)
             cb_reboot();
+        return;
+    }
+
+    if (cmd == 'E')
+    {
+        // E - Erase diagnostics memory. No parameters.
+        if (cb_erase_diagnostics)
+        {
+            cb_erase_diagnostics();
+            send_response('E', true);
+        }
+        else
+            send_response('E', false, 0xFF);
         return;
     }
 
@@ -486,4 +499,39 @@ void SerialProtocol::send_v_dump(uint8_t chip, uint32_t addr, const uint8_t *dat
     }
     line_buffer[idx++] = '\n';
     emit(line_buffer, idx);
+}
+
+void SerialProtocol::send_response(char cmd, bool success, uint8_t error_code)
+{
+    // Format: cmd;OK\n\r or cmd;ERR;error_code\n\r
+    size_t idx = 0;
+    line_buffer[idx++] = cmd;
+    line_buffer[idx++] = ';';
+
+    if (success)
+    {
+        line_buffer[idx++] = 'O';
+        line_buffer[idx++] = 'K';
+        line_buffer[idx++] = '\n';
+        line_buffer[idx++] = '\r';
+        emit(line_buffer, idx);
+    }
+    else
+    {
+        line_buffer[idx++] = 'E';
+        line_buffer[idx++] = 'R';
+        line_buffer[idx++] = 'R';
+        line_buffer[idx++] = ';';
+        // Append error code as decimal
+        char numbuf[4];
+        itoa(error_code, numbuf, 10);
+        size_t i = 0;
+        while (numbuf[i] && idx < (LINE_BUFFER_SIZE - 3))
+        {
+            line_buffer[idx++] = numbuf[i++];
+        }
+        line_buffer[idx++] = '\n';
+        line_buffer[idx++] = '\r';
+        emit(line_buffer, idx);
+    }
 }

@@ -74,6 +74,16 @@ void DiagComm::onDiagnosticsEntryChange(uint8_t index, const dtc_history_t *entr
         s_instance->onDiagnosticsEntryChangeInstance(index, entry);
 }
 
+void DiagComm::onEraseDiagnosticsCallback(void)
+{
+    // Static trampoline: forward to instance if available
+    if (s_instance)
+    {
+        // Erase the diagnostics memory
+        DSM.clear();
+    }
+}
+
 void DiagComm::onDiagnosticsSizeChangeInstance(uint8_t newSize)
 {
     // Notify host of updated diagnostics size

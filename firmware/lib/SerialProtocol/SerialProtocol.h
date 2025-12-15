@@ -41,6 +41,7 @@ public:
     typedef void (*read_callback_t)(uint8_t chip, uint32_t addr, uint8_t len);
     typedef void (*write_callback_t)(uint8_t chip, uint32_t addr, const uint8_t *data, uint8_t dlen);
     typedef void (*reboot_callback_t)(void);
+    typedef void (*erase_diagnostics_callback_t)(void);
 
     // Constructor
     SerialProtocol();
@@ -68,11 +69,15 @@ public:
     // send V;chip;addrhex;lenhex;datahex\n (datalen limited)
     void send_v_dump(uint8_t chip, uint32_t addr, const uint8_t *data, uint8_t len);
 
+    // send command response: cmd;OK\n or cmd;ERR;error_code\n
+    void send_response(char cmd, bool success, uint8_t error_code = 0);
+
     // Set application callbacks for downlink commands (descriptive setter names)
     void set_calibration_callback(calibration_callback_t cb) { cb_calibration = cb; }
     void set_read_callback(read_callback_t cb) { cb_read = cb; }
     void set_write_callback(write_callback_t cb) { cb_write = cb; }
     void set_reboot_callback(reboot_callback_t cb) { cb_reboot = cb; }
+    void set_erase_diagnostics_callback(erase_diagnostics_callback_t cb) { cb_erase_diagnostics = cb; }
 
     // Instance writer setter (public) - optional per-instance writer overrides weak hook
     typedef void (*raw_writer_t)(const uint8_t *data, size_t len);
@@ -104,6 +109,7 @@ private:
     read_callback_t cb_read;
     write_callback_t cb_write;
     reboot_callback_t cb_reboot;
+    erase_diagnostics_callback_t cb_erase_diagnostics;
 
     // Internal helpers
     void process_line(const char *line, size_t len);
