@@ -8,11 +8,13 @@
 #include "flow.h"
 #include "status.h"
 #include "config.h"
+#include "energy.h"
 
 extern Diagnostics DSM;
 extern PT100 supply_sensor;
 extern PT100 return_sensor;
 extern Flow flowObj;
+extern Energy energyObj;
 extern NodeStatus_t node_status;
 extern uint8_t node_id;
 

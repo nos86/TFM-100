@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <mcp_can.h>
 #include <flow.h>
+#include <energy.h>
 #include <cli.h>
 #include <scheduler.h>
 #include "can_messages.h"
@@ -49,6 +50,7 @@ extern PT100 return_sensor;
 extern CLIScreenManager cli;
 extern Scheduler scheduler;      // Deve essere definito nel main o scheduler
 extern NodeStatus_t node_status; // Convertito da NodeStatus_t
+extern Energy energyObj;
 
 uint8_t *HeartbeatMessage::buildPayload(uint8_t *len)
 {
@@ -163,5 +165,37 @@ uint8_t *CAN_Temperature::buildPayload(uint8_t *len)
   data[1] = (supply_temp >> 8) & 0xFF;
   data[2] = return_temp & 0xFF;
   data[3] = (return_temp >> 8) & 0xFF;
+  return data;
+};
+
+uint8_t *CAN_PowerAndEnergy::buildPayload(uint8_t *len)
+{
+  if (len == nullptr)
+  {
+    return nullptr;
+  }
+  /*
+   * Power and energy payload (8 bytes):
+   * - bytes 0..1: Energy in the last 24h in kWh (uint16_t, big-endian)
+   * - bytes 2..4: Energy total in kWh (uint24_t, big-endian)
+   * - bytes 5..6: Power in kW (uint16_t, big-endian)
+   * - byte 7: reserved for future use (set to 0)
+   */
+
+  *len = 8;
+  float actual_power = getThermalPower(supply_sensor.average_temperature, return_sensor.average_temperature, flowObj.getFlow());
+  uint32_t energy_total = max(0, int(energyObj.getEnergyTotal()));
+  uint16_t energy_24h = max(0, int(energyObj.getEnergy24h() * 100));
+  uint16_t power = max(0, int(actual_power * 10));
+
+  uint8_t *data = new uint8_t[8];
+  data[0] = energy_24h & 0xFF;
+  data[1] = (energy_24h >> 8) & 0xFF;
+  data[2] = (energy_total) & 0xFF;
+  data[3] = (energy_total >> 8) & 0xFF;
+  data[4] = (energy_total >> 16) & 0xFF;
+  data[5] = power & 0xFF;
+  data[6] = (power >> 8) & 0xFF;
+  data[7] = 0; // reserved for future use
   return data;
 };

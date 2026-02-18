@@ -101,6 +101,7 @@ void canRxInterruptHandler()
 HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
 CAN_Temperature TempMessage = CAN_Temperature();
 CAN_FilteredTemperatureAndFlow TempAndFlowMessage = CAN_FilteredTemperatureAndFlow();
+CAN_PowerAndEnergy PowerAndEnergyMessage = CAN_PowerAndEnergy();
 J1939_DM1Message DM1 = J1939_DM1Message(1000); // 1s interval
 
 /* Diagnostics */
@@ -289,6 +290,7 @@ void setup()
   j1939->registerMessage(&HBMessage);
   j1939->registerMessage(&TempMessage);
   j1939->registerMessage(&TempAndFlowMessage);
+  j1939->registerMessage(&PowerAndEnergyMessage);
   j1939->registerMessage(&DM1);
 
   // Schedule periodic PT100 measurements (driver triggers non-blocking measurement)
