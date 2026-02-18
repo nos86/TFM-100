@@ -82,6 +82,18 @@ bool CANbusOff = false;
 bool CANbusWarn = false;
 bool HwFailure = true; // Assume HW failure until all init done
 
+// CAN RX interrupt flag
+volatile bool canRxPending = false;
+
+/**
+ * @brief Interrupt Service Routine for MCP2515 RX interrupt
+ * @remarks Called when MCP2515 receives a message. Sets flag for main loop processing.
+ */
+void canRxInterruptHandler()
+{
+  canRxPending = true;
+}
+
 // serial writer provided below as a free function
 
 
@@ -113,6 +125,66 @@ static void j1939_on_error(const J1939Descriptor &desc)
 
 void update_errors();
 
+/**
+ * @brief Process received CAN messages
+ * @remarks Handles energy reset commands via J1939 Proprietary A message (PGN 0xF183, SA 0x00).
+ * Interrupt-driven: only called when canRxPending flag is set by MCP2515 RX interrupt.
+ *
+ * J1939 Proprietary A Message format:
+ * - Priority: 6 (medium)
+ * - PGN: 0xF183 (Proprietary A range)
+ * - Source Address (SA): 0x00
+ * - Combined CAN ID: 0x18F18300
+ * - Payload (1-based byte numbering):
+ *   - Byte 1: Target node address (0xFF = all nodes, or specific node ID)
+ *   - Byte 2: Reset command type
+ *     - 0x01: Reset 24h energy counter only
+ *     - 0xFF: Reset both 24h and total energy counters
+ *   - Bytes 3-8: Reserved
+ */
+void processReceivedCanMessages()
+{
+  INT8U len = 0;
+  INT8U buf[8] = {0};
+  INT32U canId = 0;
+  INT8U ext = 0;
+
+  // Process all available CAN messages
+  while (CAN0.checkReceive() == CAN_MSGAVAIL)
+  {
+    // Read the message
+    CAN0.readMsgBuf(&canId, &ext, &len, buf);
+
+    // Check for energy reset command (J1939 Proprietary A PGN 0xF183, SA 0x00, Priority 6)
+    // Only process extended frames
+    if (ext == 1 && canId == 0x18F18300)
+    {
+      INT8U target_node = buf[0]; // Byte 1 (1-based)
+      INT8U command = buf[1];     // Byte 2 (1-based)
+
+      // Check if message is for this node (0xFF = broadcast to all nodes)
+      if (target_node == 0xFF || target_node == node_id)
+      {
+        // 0x01: Reset 24h energy counter only
+        if (command == 0x01)
+        {
+          energyObj.reset24h();
+          diagComm.send_info("Energy 24h reset");
+        }
+        // 0xFF: Reset both 24h and total energy counters
+        else if (command == 0xFF)
+        {
+          energyObj.resetAll();
+          diagComm.send_info("Energy 24h and total reset");
+        }
+      }
+    }
+  }
+
+  // Clear the interrupt flag after processing all messages
+  canRxPending = false;
+}
+
 void setup()
 {
   /**
@@ -143,6 +215,20 @@ void setup()
   if ((mcp_init = (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK)))
     if ((mcp_normal = (CAN0.setMode(MCP_NORMAL) == MCP2515_OK)))
     {
+      // Configure CAN filters to accept only J1939 Proprietary A energy reset command
+      // Message: PGN 0xF183, SA 0x00, Priority 6 → CAN ID 0x18F18300
+      // RXB0: Mask 0 matches all 29 bits, Filter 0 accepts only this message
+      CAN0.init_Mask(0, 1, 0x1FFFFFFF);
+      CAN0.init_Filt(0, 1, 0x18F18300);
+
+      // RXB1: Mask 1 matches all bits but filters reject all messages (disable RXB1)
+      CAN0.init_Mask(1, 1, 0x1FFFFFFF);
+      CAN0.init_Filt(2, 1, 0x000); // Impossible to match
+
+      // Configure INT pin as input with pull-up and attach interrupt handler
+      // MCP2515 will pull INT low when a message is received
+      pinMode(MCP_INT, INPUT_PULLUP);
+      attachInterrupt(digitalPinToInterrupt(MCP_INT), canRxInterruptHandler, FALLING);
 
       // Monitor CAN controller error flags frequently (100ms)
       scheduler.addTask([](uint32_t td)
@@ -264,6 +350,10 @@ void loop()
   // Let J1939 manager process pending transmissions/timeouts
   if (j1939)
     j1939->process(millis());
+
+  // Process received CAN messages only if interrupt flag is set (e.g., energy reset commands)
+  if (canRxPending)
+    processReceivedCanMessages();
 
   // Advance non-blocking sensor state machines
   supply_sensor.process();
