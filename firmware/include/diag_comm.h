@@ -66,6 +66,7 @@ public:
 private:
     bool clientConnected = false;
     void send_complete_diagnostics();
-    static SerialProtocol comm;  // --- Serial protocol instance ---
-    static DiagComm *s_instance; // trampoline instance for static callbacks
+    static SerialProtocol comm;       // --- Serial protocol instance ---
+    static DiagComm *s_instance;      // trampoline instance for static callbacks
+    static uint32_t last_diag_update; // timestamp of last periodic update
 };

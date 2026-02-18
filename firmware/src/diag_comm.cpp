@@ -6,6 +6,7 @@ extern TFM100_DTC_Dict dtc_dict_instance; // DTC dictionary instance (defined in
 
 // Static member definitions
 SerialProtocol DiagComm::comm;
+uint32_t DiagComm::last_diag_update = 0;
 DiagComm *DiagComm::s_instance = nullptr;
 
 void DiagComm::process(uint32_t td)
@@ -27,14 +28,22 @@ void DiagComm::process(uint32_t td)
         clientConnected = false;
         // Client just disconnected
     }
-    // Read from Serial and feed protocol (non-blocking)
-    while (Serial.available() > 0)
+    else if (clientConnected)
     {
-        int c = Serial.read();
-        if (c >= 0)
+        if (td - last_diag_update >= 1000) // 1s interval for periodic updates
         {
-            uint8_t ch = (uint8_t)c;
-            comm.feed(&ch, 1);
+            last_diag_update = td;
+            periodically_update();
+        }
+        // Read from Serial and feed protocol (non-blocking)
+        while (Serial.available() > 0)
+        {
+            int c = Serial.read();
+            if (c >= 0)
+            {
+                uint8_t ch = (uint8_t)c;
+                comm.feed(&ch, 1);
+            }
         }
     }
 }
