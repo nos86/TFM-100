@@ -175,10 +175,10 @@ uint8_t *CAN_PowerAndEnergy::buildPayload(uint8_t *len)
     return nullptr;
   }
   /*
-   * Power and energy payload (8 bytes):
-   * - bytes 0..1: Energy in the last 24h in kWh (uint16_t, big-endian)
-   * - bytes 2..4: Energy total in kWh (uint24_t, big-endian)
-   * - bytes 5..6: Power in kW (uint16_t, big-endian)
+   * Power and energy payload (8 bytes, little-endian):
+   * - bytes 0..1: Energy in the last 24h (uint16_t, 0.01 kWh per LSB)
+   * - bytes 2..4: Energy total in kWh (uint24_t, 1 kWh per LSB)
+   * - bytes 5..6: Power in kW (uint16_t, 0.1 kW per LSB)
    * - byte 7: reserved for future use (set to 0)
    */
 
