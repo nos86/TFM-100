@@ -97,11 +97,14 @@ void canRxInterruptHandler()
 // serial writer provided below as a free function
 
 
-/* CAN Messages */
-HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
-CAN_Temperature TempMessage = CAN_Temperature();
-CAN_FilteredTemperatureAndFlow TempAndFlowMessage = CAN_FilteredTemperatureAndFlow();
-CAN_PowerAndEnergy PowerAndEnergyMessage = CAN_PowerAndEnergy();
+/* CAN Messages – VSCP Level 1 events */
+HeartbeatMessage HBMessage = HeartbeatMessage(5000);            // 5 s interval
+VSCP_SupplyTemperature SupplyTempMsg  = VSCP_SupplyTemperature();  // 1 s
+VSCP_ReturnTemperature ReturnTempMsg  = VSCP_ReturnTemperature();  // 1 s
+VSCP_FlowRate          FlowRateMsg    = VSCP_FlowRate();           // 1 s
+VSCP_Power             PowerMsg       = VSCP_Power();              // 1 s
+VSCP_Energy24h         Energy24hMsg   = VSCP_Energy24h();          // 1 s
+VSCP_EnergyTotal       EnergyTotalMsg = VSCP_EnergyTotal();        // 1 s
 J1939_DM1Message DM1 = J1939_DM1Message(1000); // 1s interval
 
 /* Diagnostics */
@@ -287,11 +290,14 @@ void setup()
                                       return_sensor.last_temperature,
                                       flow); });
 
-  // // Add message objects to J1939 manager
+  // // Add VSCP message objects to J1939 manager
   j1939->registerMessage(&HBMessage);
-  j1939->registerMessage(&TempMessage);
-  j1939->registerMessage(&TempAndFlowMessage);
-  j1939->registerMessage(&PowerAndEnergyMessage);
+  j1939->registerMessage(&SupplyTempMsg);
+  j1939->registerMessage(&ReturnTempMsg);
+  j1939->registerMessage(&FlowRateMsg);
+  j1939->registerMessage(&PowerMsg);
+  j1939->registerMessage(&Energy24hMsg);
+  j1939->registerMessage(&EnergyTotalMsg);
   j1939->registerMessage(&DM1);
 
   // Schedule periodic PT100 measurements (driver triggers non-blocking measurement)

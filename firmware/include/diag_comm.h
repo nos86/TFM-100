@@ -9,6 +9,7 @@
 #include "status.h"
 #include "config.h"
 #include "energy.h"
+#include "power.h"
 
 extern Diagnostics DSM;
 extern PT100 supply_sensor;

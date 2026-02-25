@@ -1,24 +1,29 @@
 #pragma once
 #include "J1939Manager.h"
+#include <vscp.h>
 
 /**
  * @file HeartbeatMessage.h
- * @brief Periodic heartbeat message wrapper implementing `IJ1939Message` behavior.
+ * @brief Periodic VSCP heartbeat message (CLASS1.INFORMATION, Type Heartbeat).
  *
- * This lightweight class exposes a periodic J1939 heartbeat PGN and integrates
- * with the `J1939Manager`'s registration system via `PeriodicMessage`.
+ * Sends a VSCP Level 1 heartbeat event every @p interval_ms milliseconds.
+ * The CAN identifier is built by J1939Manager using the VSCP_PGN helper so
+ * that it conforms to the VSCP Level 1 29-bit extended frame format.
  */
 class HeartbeatMessage : public PeriodicMessage
 {
 public:
     /**
-     * @brief Construct a heartbeat message with a default 1s interval.
+     * @brief Construct a heartbeat message with a configurable interval.
      * @param interval_ms Minimum interval between heartbeat transmissions.
      */
     HeartbeatMessage(uint16_t interval_ms = 1000) : PeriodicMessage(interval_ms) {}
 
-    /** @brief Return the PGN used for heartbeat messages. */
-    uint32_t getPGN() override { return 0xFF10; }
+    /** @brief VSCP CLASS1.INFORMATION / Type Heartbeat PGN. */
+    uint32_t getPGN() override
+    {
+        return VSCP_PGN(VSCP_CLASS1_INFORMATION, VSCP_TYPE_INFORMATION_HEARTBEAT);
+    }
 
     /**
      * @brief Build heartbeat payload into a buffer and return pointer.

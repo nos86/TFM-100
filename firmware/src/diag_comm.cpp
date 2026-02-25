@@ -1,6 +1,7 @@
 #include "diag_comm.h"
 #include "diagnostics.h"
 #include "dtc.h"
+#include <vscp.h>
 
 extern TFM100_DTC_Dict dtc_dict_instance; // DTC dictionary instance (defined in main.cpp)
 
@@ -50,20 +51,85 @@ void DiagComm::process(uint32_t td)
 
 void DiagComm::periodically_update()
 {
-    float power = getThermalPower(supply_sensor.average_temperature, return_sensor.average_temperature, flowObj.getFlow());
+    uint32_t ts = (uint32_t)millis();
+    uint8_t  buf[6];
 
-    char powerStr[16];
-    dtostrf(power*1000, 6, 3, powerStr); // width=6, precision=3
-    comm.send_log(SerialProtocol::LOG_INFO, powerStr);
+    // ---- Supply temperature (CLASS1.MEASUREMENT, Temperature, sensor 0) ----
+    // Unit: Celsius, exponent -2 (centi-degrees as int16, big-endian)
+    {
+        int32_t raw = (int32_t)roundf(supply_sensor.average_temperature * 100.0f);
+        if (raw > 32767)  raw = 32767;
+        if (raw < -32768) raw = -32768;
+        vscp_encode_int16(buf, VSCP_UNIT_TEMP_CELSIUS, 0, -2, (int16_t)raw);
+        comm.send_vscp_event(VSCP_CLASS1_MEASUREMENT,
+                             VSCP_TYPE_MEASUREMENT_TEMPERATURE, ts, buf, 4);
+    }
 
-    comm.send_param("ST", supply_sensor.average_temperature, 1);
-    comm.send_param("RT", return_sensor.average_temperature, 1);
-    comm.send_param("WF", flowObj.getFlow(), 1);
-    comm.send_param("P%", 0.0f, 1);
-    comm.send_param("E24", energyObj.getEnergy24h(), 1);
-    comm.send_param("ET", energyObj.getEnergyTotal(), 1);
-    comm.send_param("PWR", power, 1);
-    comm.send_param("NS", (uint32_t)node_status);
+    // ---- Return temperature (CLASS1.MEASUREMENT, Temperature, sensor 1) ----
+    {
+        int32_t raw = (int32_t)roundf(return_sensor.average_temperature * 100.0f);
+        if (raw > 32767)  raw = 32767;
+        if (raw < -32768) raw = -32768;
+        vscp_encode_int16(buf, VSCP_UNIT_TEMP_CELSIUS, 1, -2, (int16_t)raw);
+        comm.send_vscp_event(VSCP_CLASS1_MEASUREMENT,
+                             VSCP_TYPE_MEASUREMENT_TEMPERATURE, ts, buf, 4);
+    }
+
+    // ---- Volume flow rate (CLASS1.MEASUREMENT, Volume Flow, sensor 0) ----
+    // Unit: litres per hour, exponent 0
+    {
+        uint16_t flow = flowObj.getFlow();
+        vscp_encode_uint16(buf, VSCP_UNIT_FLOW_LH, 0, 0, flow);
+        comm.send_vscp_event(VSCP_CLASS1_MEASUREMENT,
+                             VSCP_TYPE_MEASUREMENT_VOLUME_FLOW, ts, buf, 4);
+    }
+
+    // ---- Thermal power (CLASS1.MEASUREMENT, Power, sensor 0) ----
+    // Unit: Watts, exponent 0
+    {
+        float kw     = getThermalPower(supply_sensor.average_temperature,
+                                       return_sensor.average_temperature,
+                                       flowObj.getFlow());
+        float watts  = kw * 1000.0f;
+        if (watts < 0.0f)    watts = 0.0f;
+        if (watts > 65535.0f) watts = 65535.0f;
+        vscp_encode_uint16(buf, VSCP_UNIT_POWER_WATT, 0, 0,
+                           (uint16_t)roundf(watts));
+        comm.send_vscp_event(VSCP_CLASS1_MEASUREMENT,
+                             VSCP_TYPE_MEASUREMENT_POWER, ts, buf, 4);
+    }
+
+    // ---- Energy last 24 h (CLASS1.MEASUREMENT, Energy, sensor 0) ----
+    // Unit: kWh, exponent -2 (centi-kWh as uint16)
+    {
+        float e24 = energyObj.getEnergy24h();
+        if (e24 < 0.0f)    e24 = 0.0f;
+        if (e24 > 655.35f) e24 = 655.35f;
+        vscp_encode_uint16(buf, VSCP_UNIT_ENERGY_KWH, 0, -2,
+                           (uint16_t)roundf(e24 * 100.0f));
+        comm.send_vscp_event(VSCP_CLASS1_MEASUREMENT,
+                             VSCP_TYPE_MEASUREMENT_ENERGY, ts, buf, 4);
+    }
+
+    // ---- Total energy (CLASS1.MEASUREMENT, Energy, sensor 1) ----
+    // Unit: kWh, exponent 0 (integer kWh as uint32)
+    {
+        float et = energyObj.getEnergyTotal();
+        if (et < 0.0f) et = 0.0f;
+        if (et > 4294967295.0f) et = 4294967295.0f;
+        vscp_encode_uint32(buf, VSCP_UNIT_ENERGY_KWH, 1, 0, (uint32_t)et);
+        comm.send_vscp_event(VSCP_CLASS1_MEASUREMENT,
+                             VSCP_TYPE_MEASUREMENT_ENERGY, ts, buf, 6);
+    }
+
+    // ---- Heartbeat / node status (CLASS1.INFORMATION, Heartbeat) ----
+    // Byte 0: node_status, byte 1: firmware version
+    {
+        buf[0] = (uint8_t)node_status;
+        buf[1] = (uint8_t)(FIRMWARE_VERSION & 0xFFu);
+        comm.send_vscp_event(VSCP_CLASS1_INFORMATION,
+                             VSCP_TYPE_INFORMATION_HEARTBEAT, ts, buf, 2);
+    }
 }
 
 void DiagComm::send_complete_diagnostics()

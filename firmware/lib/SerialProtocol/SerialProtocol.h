@@ -69,10 +69,19 @@ public:
     // send V;chip;addrhex;lenhex;datahex\n (datalen limited)
     void send_v_dump(uint8_t chip, uint32_t addr, const uint8_t *data, uint8_t len);
 
+    // send a VSCP event text line: VSCP;class;type;timestamp;d0,d1,...\r\n
+    // Compatible with the VSCP string representation (vscp.org specification).
+    // class_id  - VSCP event class (e.g. VSCP_CLASS1_MEASUREMENT = 10)
+    // type_id   - VSCP event type  (e.g. VSCP_TYPE_MEASUREMENT_TEMPERATURE = 6)
+    // timestamp - millisecond timestamp (uint32)
+    // data      - pointer to payload bytes (may be nullptr when data_len == 0)
+    // data_len  - number of payload bytes (0-8 for VSCP Level 1)
+    void send_vscp_event(uint16_t class_id, uint8_t type_id,
+                         uint32_t timestamp,
+                         const uint8_t *data, uint8_t data_len);
+
     // send command response: cmd;OK\n or cmd;ERR;error_code\n
     void send_response(char cmd, bool success, uint8_t error_code = 0);
-
-    // Set application callbacks for downlink commands (descriptive setter names)
     void set_calibration_callback(calibration_callback_t cb) { cb_calibration = cb; }
     void set_read_callback(read_callback_t cb) { cb_read = cb; }
     void set_write_callback(write_callback_t cb) { cb_write = cb; }

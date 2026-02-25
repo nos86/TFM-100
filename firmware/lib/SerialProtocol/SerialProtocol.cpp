@@ -536,3 +536,74 @@ void SerialProtocol::send_response(char cmd, bool success, uint8_t error_code)
         emit(line_buffer, idx);
     }
 }
+
+// Hex nibble helper (file-local, upper-case)
+static inline char hex_nibble(uint8_t v)
+{
+    v &= 0x0Fu;
+    return (v < 10u) ? (char)('0' + v) : (char)('A' + v - 10u);
+}
+
+void SerialProtocol::send_vscp_event(uint16_t class_id,
+                                      uint8_t  type_id,
+                                      uint32_t timestamp,
+                                      const uint8_t *data,
+                                      uint8_t  data_len)
+{
+    /*
+     * Format: VSCP;class;type;timestamp;hh,hh,...\r\n
+     *
+     * Where class and type are decimal, timestamp is decimal (ms),
+     * and each data byte is two uppercase hex digits, comma-separated.
+     * This follows the VSCP string representation convention.
+     *
+     * Maximum line length (8 data bytes):
+     *   "VSCP;" (5) + class(5) + ";" + type(3) + ";" + ts(10) + ";"
+     *   + 8×"HH," (24) + "\r\n" (2) ≈ 51 chars – well within LINE_BUFFER_SIZE.
+     */
+
+    if (data_len > 8u)
+        data_len = 8u;
+
+    size_t idx = 0;
+
+    // Prefix
+    line_buffer[idx++] = 'V';
+    line_buffer[idx++] = 'S';
+    line_buffer[idx++] = 'C';
+    line_buffer[idx++] = 'P';
+    line_buffer[idx++] = ';';
+
+    // class (decimal)
+    char numbuf[12];
+    itoa(class_id, numbuf, 10);
+    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 40u); i++)
+        line_buffer[idx++] = numbuf[i];
+    line_buffer[idx++] = ';';
+
+    // type (decimal)
+    itoa(type_id, numbuf, 10);
+    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 35u); i++)
+        line_buffer[idx++] = numbuf[i];
+    line_buffer[idx++] = ';';
+
+    // timestamp (decimal)
+    itoa((uint32_t)timestamp, numbuf, 10);
+    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 28u); i++)
+        line_buffer[idx++] = numbuf[i];
+    line_buffer[idx++] = ';';
+
+    // data bytes as comma-separated two-digit hex
+    for (uint8_t b = 0; b < data_len; b++)
+    {
+        if (b > 0u)
+            line_buffer[idx++] = ',';
+        uint8_t byte_val = (data != nullptr) ? data[b] : 0u;
+        line_buffer[idx++] = hex_nibble((uint8_t)(byte_val >> 4));
+        line_buffer[idx++] = hex_nibble(byte_val);
+    }
+
+    line_buffer[idx++] = '\r';
+    line_buffer[idx++] = '\n';
+    emit(line_buffer, idx);
+}
