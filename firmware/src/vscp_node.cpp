@@ -31,7 +31,6 @@
 // vscp-arduino library – low-level C core API only (no C++ VSCP class)
 #include <framework/core/vscp_core.h>
 #include <framework/core/vscp_dev_data.h>
-#include <framework/user/vscp_portable.h>
 #include <framework/user/vscp_timer.h>
 #include <framework/user/vscp_tp_adapter.h>
 #include <framework/core/vscp_class_l1.h>
@@ -69,6 +68,10 @@ static int s_btn_last = HIGH;
 
 // ---------------------------------------------------------------------------
 // CAN transport – READ callback
+//
+// Called by vscp_core_process() for every message it needs to read.
+// We also run the manual DM here: if the incoming event matches a DM row
+// we execute the action immediately (before returning to the core).
 // ---------------------------------------------------------------------------
 static BOOL vscp_can_read(vscp_RxMessage * const rxMsg)
 {
@@ -89,6 +92,12 @@ static BOOL vscp_can_read(vscp_RxMessage * const rxMsg)
     rxMsg->oAddr     = (uint8_t) ( canId          & 0xFFu);
     rxMsg->dataSize  = (len <= VSCP_L1_DATA_SIZE) ? len : VSCP_L1_DATA_SIZE;
     for (uint8_t i = 0u; i < rxMsg->dataSize; ++i) rxMsg->data[i] = data[i];
+
+    // Manual DM: match event against DM rows and execute action.
+    // With VSCP_CONFIG_ENABLE_DM=0, the core does not process the DM, so we
+    // intercept here while the message is still in hand.
+    dm_execute(rxMsg);
+
     return TRUE;
 }
 
@@ -228,9 +237,4 @@ void vscp_node_process()
     if (btn == LOW && s_btn_last == HIGH)
         vscp_core_startNodeSegmentInit();
     s_btn_last = btn;
-
-    // Execute manual DM for any non-PROTOCOL events the core received
-    vscp_RxMessage rxMsg;
-    while (vscp_portable_read(&rxMsg))
-        dm_execute(&rxMsg);
 }
