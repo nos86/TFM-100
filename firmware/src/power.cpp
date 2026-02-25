@@ -1,5 +1,4 @@
 #include "power.h"
-#include "energy.h"
 #include "EEPROM.h"
 
 float Power::updatePower(float supply_temp, float return_temp, float flow_lph)
