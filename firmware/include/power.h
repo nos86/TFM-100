@@ -4,7 +4,7 @@
 #pragma once
 
 /**
- * @file energy.h
+ * @file power.h
  * @brief Energy calculation helpers and persistence for the TFM-100 firmware.
  * @author Salvo Musumeci
  * @note All functions use the following units unless otherwise stated:
@@ -87,8 +87,8 @@ private:
      */
     const uint16_t magic = 0x9449; // Magic number to validate EEPROM data
 
-    float power = 0.0f;          // Power consumed in last 24 hours (kWh)
-    float max_power = 0.0f;      // Max power consumed (kWh)
+    float power = 0.0f;          // Current/instantaneous power (kW)
+    float max_power = 0.0f;      // Maximum observed power (kW)
     bool eeprom_failure = false; // True if last EEPROM load failed
 
     enum EEPROM_Layout
@@ -109,30 +109,5 @@ private:
      */
     bool saveToEEPROM(bool update_magic = false);
 
-    /**
-     * @brief Compute instantaneous thermal power.
-     * @param supply_temp_degC Supply temperature in °C
-     * @param return_temp_degC Return temperature in °C
-     * @param flow_lph Volumetric flow in litres per hour (L/h)
-     * @return Thermal power in kilowatts (kW). Signed: positive means heat delivered when supply > return.
-     *
-     * Units:
-     * - cp: kJ/(kg·K)
-     * - density: kg/L
-     * - L/h -> kg/h -> kJ/h -> kJ/s -> kW (divide by 3600)
-     */
-    inline float getThermalPower(float supply_temp, float return_temp, float flow_lph)
-    {
-        const float seconds_per_hour = 3600.0f;
 
-        float delta_t = supply_temp - return_temp;
-
-        // optional deadband to avoid noise integration
-        const float DT_DEADBAND = 0.05f; // °C
-        if (fabs(delta_t) < DT_DEADBAND)
-            delta_t = 0.0f;
-
-        // return signed power (positive when supply > return)
-        return (flow_lph * density * cp * delta_t) / seconds_per_hour;
-    }
 };

@@ -184,9 +184,32 @@ uint8_t *CAN_PowerAndEnergy::buildPayload(uint8_t *len)
 
   *len = 8;
   float actual_power = getThermalPower(supply_sensor.average_temperature, return_sensor.average_temperature, flowObj.getFlow());
-  uint32_t energy_total = max(0, int(energyObj.getEnergyTotal()));
-  uint16_t energy_24h = max(0, int(energyObj.getEnergy24h() * 100));
-  uint16_t power = max(0, int(actual_power * 10));
+  uint32_t energy_total = (uint32_t)max(0.0f, min(energyObj.getEnergyTotal(), 16777215.0f));
+
+  // Encode 24h energy as centi-kWh in uint16_t, with clamping to avoid overflow.
+  float energy24h = energyObj.getEnergy24h();
+  if (energy24h < 0.0f)
+  {
+    energy24h = 0.0f;
+  }
+  // Maximum encodable value with scale factor 100 is 655.35 kWh
+  if (energy24h > 655.35f)
+  {
+    energy24h = 655.35f;
+  }
+  uint16_t energy_24h = (uint16_t)roundf(energy24h * 100.0f);
+  // Scale power to deci-kW, then round and clamp to uint16_t range to avoid overflow.
+  float power_scaled = actual_power * 10.0f;
+  if (power_scaled < 0.0f)
+  {
+    power_scaled = 0.0f;
+  }
+  uint32_t power_u = (uint32_t)roundf(power_scaled);
+  if (power_u > 0xFFFFu)
+  {
+    power_u = 0xFFFFu;
+  }
+  uint16_t power = (uint16_t)power_u;
 
   uint8_t *data = new uint8_t[8];
   data[0] = energy_24h & 0xFF;

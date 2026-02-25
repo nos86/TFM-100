@@ -6,6 +6,12 @@ float Power::updatePower(float supply_temp, float return_temp, float flow_lph)
     power = getThermalPower(supply_temp, return_temp, flow_lph);
     if (power < 0.0f)
         return 0.0f;
+
+    if (power > max_power)
+    {
+        max_power = power;
+        saveToEEPROM();
+    }
     return power;
 }
 
@@ -35,7 +41,7 @@ bool Power::loadFromEEPROM()
 }
 
 /**
- * @brief Persist current energy state into EEPROM
+ * @brief Persist current power state into EEPROM
  * @return true on success
  */
 bool Power::saveToEEPROM(bool update_magic)

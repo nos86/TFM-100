@@ -208,6 +208,7 @@ void setup()
   // If diagnostics EEPROM load failed during Diagnostics construction, flag the DTC
   DSM.setRaw(DTC_DSMEepromFailure, !DSM.eepromLoadOk());
   DSM.setRaw(DTC_PowerEepromFailure, !powerObj.eepromLoadOk());
+  DSM.setRaw(DTC_EnergyEepromFailure, !energyObj.eepromLoadOk());
 
   // Compute node address from DIP switches (base + switch value)
   node_id = dip_switch_read() | NODE_ID_BASE;
