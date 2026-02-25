@@ -192,8 +192,6 @@ function handleVscpEvent(vscp_class, vscp_type, ts, bytes) {
     if (vscp_type === VSCP_TYPE_INFORMATION_HEARTBEAT && bytes.length >= 1) {
       // Byte 0: node status (NodeStatus_t: 0=SETUP, 1=RUN, 127=SLEEP, 255=STOP)
       nodeStatus.value = bytes[0]
-      if (bytes.length >= 2)
-        firmwareVersion.value = '0x' + bytes[1].toString(16).toUpperCase().padStart(2, '0')
     }
   }
 }
