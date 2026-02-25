@@ -39,15 +39,13 @@
 #include "LEDs.h"
 #include "flow.h"
 #include "PT100.h"
-#include "cli.h"
+#include "HardwareSerial.h"
 #include <status.h>
+#include "diag_comm.h"
 
-extern PT100 supply_sensor;      // main.cpp
-extern PT100 return_sensor;      // main.cpp
-extern Flow flowObj;             // main.cpp
-extern NodeStatus_t node_status; // main.cpp
-extern CLIScreenManager cli;     // main.cpp
+
 extern uint8_t severity;         // main.cpp
+extern DiagComm diagComm;
 
 LEDs::LEDs(uint8_t redPin, uint8_t greenPin)
 {
@@ -61,7 +59,7 @@ LEDs::LEDs(uint8_t redPin, uint8_t greenPin)
     digitalWrite(greenPin, HIGH);
 }
 
-void LEDs::process(bool HwFailure)
+void LEDs::process()
 {
     // ``tick`` becomes true when at least one 50ms quantum has been processed.
     bool tick = false;
@@ -184,7 +182,7 @@ void LEDs::process(bool HwFailure)
          * - SLEEP: single flash pattern
          * - SETUP: inverted flicker (visible pattern)
          */
-        if (cli.clientConnected)
+        if (diagComm.isClientConnected())
             gr_co = GenericLedStatus & LED_blink;
         else if (node_status == RUN)
             gr_co = 1;

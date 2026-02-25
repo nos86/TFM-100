@@ -71,6 +71,20 @@ public:
      */
     bool eepromLoadOk() const { return eepromLoadOk_; }
 
+    /**
+     * Callback types
+     * onEntryChanged: called when a specific entry changes (index in errors array)
+     *   params: index, old_entry, new_entry
+     * onCountChanged: called when total number of non-empty entries changes
+     *   params: oldCount, newCount
+     */
+    typedef void (*onEntryChanged_cb_t)(uint8_t index, const dtc_history_t *entry);
+    typedef void (*onCountChanged_cb_t)(uint8_t newCount);
+
+    // Set callback handlers
+    void setOnEntryChangedCallback(onEntryChanged_cb_t cb) { onEntryChangedCb = cb; }
+    void setOnCountChangedCallback(onCountChanged_cb_t cb) { onCountChangedCb = cb; }
+
 private:
     DTC_List *dict_;                                              // Pointer to DTC dictionary implementation
     dtc_history_t errors[DIAGNOSTICS_MEMORY_SIZE];                // DTC history array
@@ -79,6 +93,9 @@ private:
     void saveToEEPROM();                                          // Persist memory via platform hook (no-op by default)
     bool loadFromEEPROM();                                        // Load memory via platform hook (no-op by default). Returns true on success
     void setStateAndPersist(uint8_t index, dtc_state_t newState); //WS Helper to set state and persist when changed
+    // Callback storage
+    onEntryChanged_cb_t onEntryChangedCb = nullptr;
+    onCountChanged_cb_t onCountChangedCb = nullptr;
 };
 
 /*

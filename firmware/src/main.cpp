@@ -32,16 +32,15 @@
 
 // Include Headers
 #include <status.h>
-#include <cli.h>
 #include <can_messages.h>
 #include <McpCanAdapter.h>
 #include <dip_switch.h>
 #include <dtc.h>
 #include <EEPROM.h>
 #include <utils.h>
+#include <diag_comm.h>
 
 /* CLI */
-CLIScreenManager cli = CLIScreenManager();
 
 /* Temperature Sensors Variables */
 PT100 supply_sensor = PT100(SUPPLY_CS);
@@ -70,6 +69,8 @@ LEDs ledIndicators = LEDs(LED_RED, LED_GREEN);
 // Scheduler
 Scheduler scheduler = Scheduler();
 
+DiagComm diagComm = DiagComm();
+
 /* Node ID */
 uint8_t node_id;
 uint8_t severity = 0;
@@ -77,6 +78,9 @@ uint8_t severity = 0;
 bool CANbusOff = false;
 bool CANbusWarn = false;
 bool HwFailure = true; // Assume HW failure until all init done
+
+// serial writer provided below as a free function
+
 
 /* CAN Messages */
 HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval
@@ -129,7 +133,7 @@ static void j1939_on_error(const J1939Descriptor &desc)
   while (*msg)
     *p++ = *msg++;
   *p = '\0';
-  cli.logError(buf);
+  diagComm.send_error(buf);
 }
 
 void update_errors();
@@ -151,8 +155,7 @@ void setup()
   /* Configure microcontroller/peripherals. */
 
   // Serial for CLI/diagnostics output
-  Serial.begin(115200);
-  cli.begin();
+  diagComm.begin(115200);
 
   // If diagnostics EEPROM load failed during Diagnostics construction, flag the DTC
   DSM.setRaw(DTC_DSMEepromFailure, !DSM.eepromLoadOk());
@@ -192,10 +195,9 @@ void setup()
     while (millis() < 60000 && !reboot_now)
     {
       // drawHardwareFailure returns true when user requests immediate reboot
-      reboot_now = cli.drawHardwareFailure(mcp_init, mcp_normal, supply_init, return_init);
       // Keep LED state machine ticking and allow scheduled tasks to run
       severity = DSM.getMaxSeverity();
-      ledIndicators.process(true);
+      ledIndicators.process();
       scheduler.run();
     }
     // Force reboot via watchdog if recovery is not requested
@@ -223,15 +225,12 @@ void setup()
   scheduler.addTask([](uint32_t td)
                     {
                       if (!supply_sensor.triggerMeasurement())
-                        cli.logError("Unable to read SUPPLY");
+                        diagComm.send_error("Unable to read SUPPLY");
                       if (!return_sensor.triggerMeasurement())
-                        cli.logError("Unable to read RETURN"); },
+                        diagComm.send_error("Unable to read RETURN"); },
                     PT100_SAMPLE_RATE);
 
-  // Periodic CLI housekeeping (screens, input processing)
-  scheduler.addTask([](uint32_t td)
-                    { cli.periodic(); },
-                    1000);
+  // Periodic datastream
 
   // Periodic diagnostics update (check sensor errors, update DTC memory)
   scheduler.addTask([](uint32_t td)
@@ -287,8 +286,7 @@ void loop()
   return_sensor.process();
   flowObj.process();
 
-  // CLI processing (screen refresh, input handling)
-  cli.process();
+  diagComm.process(millis());
 
   // Set node mode depending on flow present
   node_status = flowObj.isFlowing() ? RUN : SLEEP;
