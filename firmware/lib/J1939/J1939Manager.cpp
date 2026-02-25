@@ -401,13 +401,12 @@ void J1939Manager::processRegisteredMessages(uint16_t now_ms)
             uint8_t *data;
             uint8_t len;
             data = msg->buildPayload(&len);
-            // If payload was provided, enqueue a copy. Free the returned buffer to avoid leaks.
+            // If payload was provided, enqueue a copy.
+            // Ownership/lifetime of `data` stays with the message implementation:
+            // this manager never deletes the returned pointer.
             if (data != nullptr && len > 0)
             {
                 bool ok = sendCopy(msg->getPGN(), data, len, msg->getDestination(), msg->getPriority());
-                // Many message implementations allocate with new[]. The manager doesn't take ownership
-                // of the returned pointer beyond copying it into the internal pool, so free it here.
-                delete[] data;
                 if (!ok)
                     last_error_ = J1939TxError::POOL_NO_SPACE;
             }
