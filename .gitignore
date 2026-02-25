@@ -53,3 +53,10 @@ dkms.conf
 
 # Bootloader hex files
 !bootloader/*.hex
+
+# Node.js dependencies and build artifacts
+node_modules/
+dist/
+webui/node_modules/
+webui/dist/
+webui/package-lock.json
