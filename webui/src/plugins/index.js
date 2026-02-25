@@ -13,7 +13,7 @@ export function registerPlugins (app) {
   app.use(createWebSerialPlugin({
   baudRate: 115200,
   textMode: true,
-  lineEnding: "\n\r",
+  lineEnding: "\r\n",
   filters: [{usbVendorId: 0x1b4f}], // TFM-100 USB Vendor ID
 }));
 }
