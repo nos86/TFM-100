@@ -34,9 +34,6 @@ private:
     bool periodic_update;
     uint8_t logRow = 0;
 
-    // FIXME: remove these variables
-    float power, power_percentage, energy_24h, energy_total;
-
     // Metodi privati per la formattazione
     void printHeader(const __FlashStringHelper *title, uint8_t background = 255, uint8_t foreground = 255);
     void printFooter(bool failure = false);

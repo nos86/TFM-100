@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <mcp_can.h>
 #include <flow.h>
+#include <energy.h>
 #include <cli.h>
 #include <scheduler.h>
 #include "can_messages.h"
@@ -49,6 +50,7 @@ extern PT100 return_sensor;
 extern CLIScreenManager cli;
 extern Scheduler scheduler;      // Deve essere definito nel main o scheduler
 extern NodeStatus_t node_status; // Convertito da NodeStatus_t
+extern Energy energyObj;
 
 uint8_t *HeartbeatMessage::buildPayload(uint8_t *len)
 {
@@ -163,5 +165,60 @@ uint8_t *CAN_Temperature::buildPayload(uint8_t *len)
   data[1] = (supply_temp >> 8) & 0xFF;
   data[2] = return_temp & 0xFF;
   data[3] = (return_temp >> 8) & 0xFF;
+  return data;
+};
+
+uint8_t *CAN_PowerAndEnergy::buildPayload(uint8_t *len)
+{
+  if (len == nullptr)
+  {
+    return nullptr;
+  }
+  /*
+   * Power and energy payload (8 bytes, little-endian):
+   * - bytes 0..1: Energy in the last 24h (uint16_t, 0.01 kWh per LSB)
+   * - bytes 2..4: Energy total in kWh (uint24_t, 1 kWh per LSB)
+   * - bytes 5..6: Power in kW (uint16_t, 0.1 kW per LSB)
+   * - byte 7: reserved for future use (set to 0)
+   */
+
+  *len = 8;
+  float actual_power = getThermalPower(supply_sensor.average_temperature, return_sensor.average_temperature, flowObj.getFlow());
+  uint32_t energy_total = (uint32_t)max(0.0f, min(energyObj.getEnergyTotal(), 16777215.0f));
+
+  // Encode 24h energy as centi-kWh in uint16_t, with clamping to avoid overflow.
+  float energy24h = energyObj.getEnergy24h();
+  if (energy24h < 0.0f)
+  {
+    energy24h = 0.0f;
+  }
+  // Maximum encodable value with scale factor 100 is 655.35 kWh
+  if (energy24h > 655.35f)
+  {
+    energy24h = 655.35f;
+  }
+  uint16_t energy_24h = (uint16_t)roundf(energy24h * 100.0f);
+  // Scale power to deci-kW, then round and clamp to uint16_t range to avoid overflow.
+  float power_scaled = actual_power * 10.0f;
+  if (power_scaled < 0.0f)
+  {
+    power_scaled = 0.0f;
+  }
+  uint32_t power_u = (uint32_t)roundf(power_scaled);
+  if (power_u > 0xFFFFu)
+  {
+    power_u = 0xFFFFu;
+  }
+  uint16_t power = (uint16_t)power_u;
+
+  uint8_t *data = new uint8_t[8];
+  data[0] = energy_24h & 0xFF;
+  data[1] = (energy_24h >> 8) & 0xFF;
+  data[2] = (energy_total) & 0xFF;
+  data[3] = (energy_total >> 8) & 0xFF;
+  data[4] = (energy_total >> 16) & 0xFF;
+  data[5] = power & 0xFF;
+  data[6] = (power >> 8) & 0xFF;
+  data[7] = 0; // reserved for future use
   return data;
 };

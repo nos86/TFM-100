@@ -34,4 +34,24 @@
 
 // EEPROM layout
 // First byte reserved for diagnostics storage start (logical offset)
+//
+// Layout (byte offsets, inclusive ranges):
+//   0x00           : reserved (logical diagnostics start pointer)
+//   0x1A - 0x1F    : POWER region (6 bytes: 2 bytes magic + 4 bytes max_power)
+//   0x20 - 0x29    : ENERGY region (10 bytes: 2 bytes magic + 4 bytes energy_total + 4 bytes energy_24h)
+//   0x40 - ...     : DIAGNOSTICS region (starts at 0x40; size defined elsewhere)
+//
+// Offsets:
+#define POWER_EEPROM_OFFSET 0x1A
+#define ENERGY_EEPROM_OFFSET 0x20
 #define DIAGNOSTICS_EEPROM_OFFSET 0x40
+
+// Region sizes (in bytes) — keep in sync with EEPROM data structures:
+#define POWER_EEPROM_SIZE   6   // 2 bytes magic + 4 bytes max_power
+#define ENERGY_EEPROM_SIZE 10   // 2 bytes magic + 4 bytes energy_total + 4 bytes energy_24h
+
+// Compile-time checks to ensure EEPROM regions do not overlap.
+static_assert(POWER_EEPROM_OFFSET + POWER_EEPROM_SIZE <= ENERGY_EEPROM_OFFSET,
+              "EEPROM layout error: POWER region overlaps ENERGY region");
+static_assert(ENERGY_EEPROM_OFFSET + ENERGY_EEPROM_SIZE <= DIAGNOSTICS_EEPROM_OFFSET,
+              "EEPROM layout error: ENERGY region overlaps DIAGNOSTICS region");

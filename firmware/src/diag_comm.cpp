@@ -6,6 +6,7 @@ extern TFM100_DTC_Dict dtc_dict_instance; // DTC dictionary instance (defined in
 
 // Static member definitions
 SerialProtocol DiagComm::comm;
+uint32_t DiagComm::last_diag_update = 0;
 DiagComm *DiagComm::s_instance = nullptr;
 
 void DiagComm::process(uint32_t td)
@@ -27,27 +28,41 @@ void DiagComm::process(uint32_t td)
         clientConnected = false;
         // Client just disconnected
     }
-    // Read from Serial and feed protocol (non-blocking)
-    while (Serial.available() > 0)
+    else if (clientConnected)
     {
-        int c = Serial.read();
-        if (c >= 0)
+        if (td - last_diag_update >= 1000) // 1s interval for periodic updates
         {
-            uint8_t ch = (uint8_t)c;
-            comm.feed(&ch, 1);
+            last_diag_update = td;
+            periodically_update();
+        }
+        // Read from Serial and feed protocol (non-blocking)
+        while (Serial.available() > 0)
+        {
+            int c = Serial.read();
+            if (c >= 0)
+            {
+                uint8_t ch = (uint8_t)c;
+                comm.feed(&ch, 1);
+            }
         }
     }
 }
 
 void DiagComm::periodically_update()
 {
+    float power = getThermalPower(supply_sensor.average_temperature, return_sensor.average_temperature, flowObj.getFlow());
+
+    char powerStr[16];
+    dtostrf(power*1000, 6, 3, powerStr); // width=6, precision=3
+    comm.send_log(SerialProtocol::LOG_INFO, powerStr);
+
     comm.send_param("ST", supply_sensor.average_temperature, 1);
     comm.send_param("RT", return_sensor.average_temperature, 1);
     comm.send_param("WF", flowObj.getFlow(), 1);
-    comm.send_param("E24", 0.0f, 1);
-    comm.send_param("ET", 0.0f, 1);
     comm.send_param("P%", 0.0f, 1);
-    comm.send_param("PWR", 0.0f, 1);
+    comm.send_param("E24", energyObj.getEnergy24h(), 1);
+    comm.send_param("ET", energyObj.getEnergyTotal(), 1);
+    comm.send_param("PWR", power, 1);
     comm.send_param("NS", (uint32_t)node_status);
 }
 

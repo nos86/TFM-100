@@ -17,3 +17,4 @@
 #include <messages/HeartbeatMessage.h>
 #include <messages/FilteredTemperatureMessage.h>
 #include <messages/RawTemperatureMessage.h>
+#include <messages/PowerAndEnergy.h>

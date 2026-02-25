@@ -26,6 +26,8 @@ typedef enum
     DTC_CANBusOff,
     DTC_CANBusErrorPassive,
     DTC_CANBusDeviceError,
+    DTC_EnergyEepromFailure,
+    DTC_PowerEepromFailure
 
 } dtc_enum_t;
 
@@ -58,6 +60,8 @@ const char DTC_ReturnLineDeviceError_[] PROGMEM = "DTC_ReturnLineDeviceError";
 const char DTC_CANBusOff_[] PROGMEM = "DTC_CANBusErrorBusOff";
 const char DTC_CANBusErrorPassive_[] PROGMEM = "DTC_CANBusErrorPassive";
 const char DTC_CANBusDeviceError_[] PROGMEM = "DTC_CANBusDeviceError";
+const char DTC_EnergyEepromFailure_[] PROGMEM = "DTC_EnergyEepromFailure";
+const char DTC_PowerEepromFailure_[] PROGMEM = "DTC_PowerEepromFailure";
 // // Add more strings as needed
 
 const dtc_entity_t dtc_dict_entries[] PROGMEM = {
@@ -82,6 +86,9 @@ const dtc_entity_t dtc_dict_entries[] PROGMEM = {
     {639, 12, DTC_CANBusOff_, 5, red_lamp_state_t::THREE_BLINKS},       // DTC_CANBusOff
     {639, 2, DTC_CANBusErrorPassive_, 5, red_lamp_state_t::SOLID},      // DTC_CANBusErrorPassive
     {639, 23, DTC_CANBusDeviceError_, 0, red_lamp_state_t::FLICKERING}, // DTC_CANBusDeviceError
+
+    {523701, 0, DTC_EnergyEepromFailure_, 0, red_lamp_state_t::ONE_BLINK}, // DTC_EnergyEepromFailure (energy EEPROM failure)
+    {523702, 0, DTC_PowerEepromFailure_, 0, red_lamp_state_t::ONE_BLINK},  // DTC_PowerEepromFailure (power EEPROM failure)
 
     // Add more DTC definitions as needed
 };
