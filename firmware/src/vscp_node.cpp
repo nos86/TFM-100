@@ -66,6 +66,9 @@ static uint32_t s_timer_last = 0u;
 // Init-button state
 static int s_btn_last = HIGH;
 
+// Forward declaration (defined below)
+static void dm_execute(vscp_RxMessage const * const msg);
+
 // ---------------------------------------------------------------------------
 // CAN transport – READ callback
 //
