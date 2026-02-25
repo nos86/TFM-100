@@ -1,26 +1,19 @@
 #include "Arduino.h"
 #include "config.h"
+#include "energy.h"
 
 #pragma once
 
 /**
  * @file power.h
- * @brief Energy calculation helpers and persistence for the TFM-100 firmware.
+ * @brief Power tracking and persistence for the TFM-100 firmware.
  * @author Salvo Musumeci
  * @note All functions use the following units unless otherwise stated:
  *  - Temperature: degrees Celsius (°C)
  *  - Volume: litres (L)
  *  - Flow: litres per hour (L/h)
- *  - Specific heat capacity: kJ/(kg·K)
- *  - Density: kg/L
  *  - Power returned in kilowatts (kW)
- *  - Energy returned/stored in kilowatt-hours (kWh)
  */
-
-// Physical constants (water) used by the simple energy calculations.
-// Use temperature-dependent values for higher metering accuracy if required.
-#define cp 4.186f    // kJ/kg°C for water
-#define density 1.0f // kg/L for water
 
 class Power
 {
