@@ -63,9 +63,9 @@ public:
 };
 
 /* --------------------------------------------------------------------------
- * Volume flow rate – CLASS1.MEASUREMENT, Type Volume Flow, sensor 0
- * Unit: litres per hour (l/h), no scaling (exponent = 0)
- * Payload: 4 bytes
+ * Volume flow rate – CLASS1.MEASUREMENT, Type Flow (36), sensor 0
+ * Unit: Litres per second (L/s = VSCP_UNIT_FLOW_LS, opt unit 1), exponent -3
+ * Payload: 4 bytes.  Flow in l/h is converted to L/s × 10^-3 before encoding.
  * -------------------------------------------------------------------------- */
 class VSCP_FlowRate : public PeriodicMessage
 {
@@ -75,7 +75,7 @@ public:
 
     uint32_t getPGN() override
     {
-        return VSCP_PGN(VSCP_CLASS1_MEASUREMENT, VSCP_TYPE_MEASUREMENT_VOLUME_FLOW);
+        return VSCP_PGN(VSCP_CLASS1_MEASUREMENT, VSCP_TYPE_MEASUREMENT_FLOW);
     }
 
     uint8_t *buildPayload(uint8_t *len) override;

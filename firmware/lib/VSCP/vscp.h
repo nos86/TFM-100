@@ -34,16 +34,19 @@
  * VSCP Types – CLASS1.INFORMATION (class 20)
  * ========================================================================== */
 
-#define VSCP_TYPE_INFORMATION_HEARTBEAT   9   ///< Node heartbeat (alive signal)
+#define VSCP_TYPE_INFORMATION_NODE_HEARTBEAT   9   ///< Node heartbeat (mandatory, all nodes)
+// Convenience alias matching shorter name used in project
+#define VSCP_TYPE_INFORMATION_HEARTBEAT  VSCP_TYPE_INFORMATION_NODE_HEARTBEAT
 
 /* ============================================================================
  * VSCP Types – CLASS1.MEASUREMENT (class 10)
+ * Type numbers match the VSCP specification exactly (vscp.org/spec).
  * ========================================================================== */
 
-#define VSCP_TYPE_MEASUREMENT_TEMPERATURE     6   ///< Temperature (K / °C / °F)
-#define VSCP_TYPE_MEASUREMENT_ENERGY         10   ///< Energy (J or kWh)
-#define VSCP_TYPE_MEASUREMENT_POWER          11   ///< Power (W or kW)
-#define VSCP_TYPE_MEASUREMENT_VOLUME_FLOW    40   ///< Volume flow rate
+#define VSCP_TYPE_MEASUREMENT_TEMPERATURE     6   ///< Temperature (default: K; opt: °C=1, °F=2)
+#define VSCP_TYPE_MEASUREMENT_ENERGY         13   ///< Energy (default: J; opt: kWh=1)
+#define VSCP_TYPE_MEASUREMENT_POWER          14   ///< Power (default: W; opt: Horse Power Metric=1)
+#define VSCP_TYPE_MEASUREMENT_FLOW           36   ///< Flow (default: m³/s; opt: L/s=1)
 
 /* ============================================================================
  * VSCP Measurement Data Coding byte (byte 0 of every CLASS1.MEASUREMENT event)
@@ -66,14 +69,11 @@
 #define VSCP_UNIT_ENERGY_KWH        1   ///< Kilowatt-hour
 
 /** Units – Power (bits [4:3]) */
-#define VSCP_UNIT_POWER_WATT        0   ///< Watt
-#define VSCP_UNIT_POWER_KW          1   ///< Kilowatt
+#define VSCP_UNIT_POWER_WATT        0   ///< Watt (default per VSCP spec)
 
-/** Units – Volume Flow (bits [4:3]) */
-#define VSCP_UNIT_FLOW_M3S          0   ///< Cubic metres per second
-#define VSCP_UNIT_FLOW_LS           1   ///< Litres per second
-#define VSCP_UNIT_FLOW_LM           2   ///< Litres per minute
-#define VSCP_UNIT_FLOW_LH           3   ///< Litres per hour
+/** Units – Flow (bits [4:3]) – VSCP Type 36 */
+#define VSCP_UNIT_FLOW_M3S          0   ///< Cubic metres per second (default)
+#define VSCP_UNIT_FLOW_LS           1   ///< Litres per second (optional unit 1)
 
 /* ============================================================================
  * VSCP PGN helper – make J1939Manager produce a VSCP Level 1 CAN identifier.

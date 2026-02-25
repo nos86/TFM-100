@@ -109,17 +109,16 @@ const VSCP_CLASS1_MEASUREMENT   = 10
 
 const VSCP_TYPE_INFORMATION_HEARTBEAT      = 9
 const VSCP_TYPE_MEASUREMENT_TEMPERATURE    = 6
-const VSCP_TYPE_MEASUREMENT_ENERGY         = 10
-const VSCP_TYPE_MEASUREMENT_POWER          = 11
-const VSCP_TYPE_MEASUREMENT_VOLUME_FLOW    = 40
+const VSCP_TYPE_MEASUREMENT_ENERGY         = 13  // per VSCP spec (was 10=Radioactivity)
+const VSCP_TYPE_MEASUREMENT_POWER          = 14  // per VSCP spec (was 11=Force)
+const VSCP_TYPE_MEASUREMENT_FLOW           = 36  // per VSCP spec (was 40=Sound Impedance)
 
 // Data coding byte constants
 const VSCP_DCTYPE_NORMALIZED_INT = 0
 const VSCP_UNIT_TEMP_CELSIUS     = 1
 const VSCP_UNIT_ENERGY_KWH       = 1
 const VSCP_UNIT_POWER_WATT       = 0
-const VSCP_UNIT_POWER_KW         = 1
-const VSCP_UNIT_FLOW_LH          = 3
+const VSCP_UNIT_FLOW_LS          = 1  // Litres/second (VSCP standard unit for Flow)
 
 /**
  * Decode a VSCP CLASS1.MEASUREMENT normalised-integer payload.
@@ -171,16 +170,14 @@ function handleVscpEvent(vscp_class, vscp_type, ts, bytes) {
         if (m.sensorIdx === 0) tempMandataC.value = parseFloat(m.value.toFixed(2))
         else if (m.sensorIdx === 1) tempRitornoC.value = parseFloat(m.value.toFixed(2))
       }
-    } else if (vscp_type === VSCP_TYPE_MEASUREMENT_VOLUME_FLOW) {
-      // Litres/hour (unit 3); sensor 0 = main flow
-      if (m.unit === VSCP_UNIT_FLOW_LH && m.sensorIdx === 0)
-        waterFlowLh.value = parseFloat(m.value.toFixed(1))
+    } else if (vscp_type === VSCP_TYPE_MEASUREMENT_FLOW) {
+      // L/s (VSCP standard unit 1); sensor 0 = main flow → convert to L/h for display
+      if (m.unit === VSCP_UNIT_FLOW_LS && m.sensorIdx === 0)
+        waterFlowLh.value = parseFloat((m.value * 3600).toFixed(1))
     } else if (vscp_type === VSCP_TYPE_MEASUREMENT_POWER) {
-      // Watts (unit 0) → convert to kW; Kilowatts (unit 1) → direct
+      // Watts (unit 0) → convert to kW for display
       if (m.unit === VSCP_UNIT_POWER_WATT)
         powerKW.value = parseFloat((m.value / 1000).toFixed(3))
-      else if (m.unit === VSCP_UNIT_POWER_KW)
-        powerKW.value = parseFloat(m.value.toFixed(3))
     } else if (vscp_type === VSCP_TYPE_MEASUREMENT_ENERGY) {
       // kWh (unit 1); sensor 0 = 24 h energy, sensor 1 = total energy
       if (m.unit === VSCP_UNIT_ENERGY_KWH) {
@@ -190,7 +187,7 @@ function handleVscpEvent(vscp_class, vscp_type, ts, bytes) {
     }
   } else if (vscp_class === VSCP_CLASS1_INFORMATION) {
     if (vscp_type === VSCP_TYPE_INFORMATION_HEARTBEAT && bytes.length >= 1) {
-      // Byte 0: node status (NodeStatus_t: 0=SETUP, 1=RUN, 127=SLEEP, 255=STOP)
+      // Byte 0: user-specified (node status); bytes 1-2: zone/subzone (per VSCP spec)
       nodeStatus.value = bytes[0]
     }
   }
@@ -224,12 +221,13 @@ onMounted(() => {
         }
         break;
       case "VSCP": {
-        // VSCP;class;type;timestamp;hh,hh,...
-        const vscp_class = parseInt(data[1])
-        const vscp_type  = parseInt(data[2])
-        const ts         = parseInt(data[3])
-        const bytes = data[4]
-          ? data[4].trim().split(',').map(h => parseInt(h, 16))
+        // VSCP;class;type;addr;timestamp;hh,hh,...
+        const vscp_class  = parseInt(data[1])
+        const vscp_type   = parseInt(data[2])
+        // data[3] = source_addr (mandatory node address per VSCP spec)
+        const ts          = parseInt(data[4])
+        const bytes = data[5]
+          ? data[5].trim().split(',').map(h => parseInt(h, 16))
           : []
         handleVscpEvent(vscp_class, vscp_type, ts, bytes)
         break;

@@ -50,13 +50,15 @@ extern NodeStatus_t node_status;
 extern Energy energyObj;
 
 /* ============================================================================
- * HeartbeatMessage – VSCP CLASS1.INFORMATION, Type Heartbeat
- * Payload (8 bytes):
- *   byte 0: node status (NodeStatus_t enum value)
- *   byte 1: firmware version
- *   byte 2: (variant[3:0] << 4) | model[3:0]
- *   byte 3: reserved (0x00)
- *   bytes 4-7: uptime in seconds, big-endian uint32
+ * HeartbeatMessage – VSCP CLASS1.INFORMATION, Type Node Heartbeat (9)
+ * Payload (8 bytes, per VSCP spec):
+ *   byte 0: user-specified  → node status (NodeStatus_t)
+ *   byte 1: Zone            → 0xFF (all zones, per VSCP spec)
+ *   byte 2: Sub-zone        → 0xFF (all sub-zones, per VSCP spec)
+ *   byte 3: optional        → firmware version
+ *   byte 4: optional        → (variant[3:0] << 4) | model[3:0]
+ *   byte 5: optional        → reserved
+ *   bytes 6-7: optional     → uptime (last 16 bits, big-endian)
  * ========================================================================== */
 uint8_t *HeartbeatMessage::buildPayload(uint8_t *len)
 {
@@ -65,15 +67,15 @@ uint8_t *HeartbeatMessage::buildPayload(uint8_t *len)
 
     *len = 8;
     uint8_t *data = new uint8_t[8];
-    data[0] = (uint8_t)node_status;
-    data[1] = (uint8_t)(FIRMWARE_VERSION & 0xFFu);
-    data[2] = (uint8_t)(((VARIANT & 0x0Fu) << 4) | (MODEL & 0x0Fu));
-    data[3] = 0x00u; // reserved
+    data[0] = (uint8_t)node_status;               // user-specified (byte 0)
+    data[1] = 0xFFu;                               // zone: 0xFF = all zones
+    data[2] = 0xFFu;                               // sub-zone: 0xFF = all sub-zones
+    data[3] = (uint8_t)(FIRMWARE_VERSION & 0xFFu); // optional: firmware version
+    data[4] = (uint8_t)(((VARIANT & 0x0Fu) << 4) | (MODEL & 0x0Fu)); // optional: variant|model
+    data[5] = 0x00u;                               // reserved
     uint32_t uptime = scheduler.getUptime();
-    data[4] = (uint8_t)((uptime >> 24) & 0xFFu);
-    data[5] = (uint8_t)((uptime >> 16) & 0xFFu);
-    data[6] = (uint8_t)((uptime >>  8) & 0xFFu);
-    data[7] = (uint8_t)( uptime        & 0xFFu);
+    data[6] = (uint8_t)((uptime >>  8) & 0xFFu);  // optional: uptime 16-bit MSB
+    data[7] = (uint8_t)( uptime        & 0xFFu);  // optional: uptime 16-bit LSB
     return data;
 }
 
@@ -118,8 +120,10 @@ uint8_t *VSCP_ReturnTemperature::buildPayload(uint8_t *len)
 }
 
 /* ============================================================================
- * VSCP_FlowRate – CLASS1.MEASUREMENT, Volume Flow, sensor 0
- * Unit: litres per hour, exponent 0
+ * VSCP_FlowRate – CLASS1.MEASUREMENT, Flow (type 36), sensor 0
+ * Unit: Litres per second (VSCP_UNIT_FLOW_LS = 1), exponent -3
+ * Converts internal l/h to L/s × 10^3 (milli-L/s):
+ *   value = round(flow_lh / 3.6) = round(flow_lh × 10 / 36)
  * Payload: 4 bytes
  * ========================================================================== */
 uint8_t *VSCP_FlowRate::buildPayload(uint8_t *len)
@@ -128,10 +132,13 @@ uint8_t *VSCP_FlowRate::buildPayload(uint8_t *len)
         return nullptr;
 
     *len = 4;
-    uint16_t flow = flowObj.getFlow();
+    uint16_t flow_lh = flowObj.getFlow();
+    // l/h ÷ 3600 = l/s; × 1000 = milli-l/s (exponent -3)
+    // Integer: round((flow_lh × 10 + 18) / 36)
+    uint16_t mls = (uint16_t)(((uint32_t)flow_lh * 10u + 18u) / 36u);
 
     uint8_t *data = new uint8_t[4];
-    vscp_encode_uint16(data, VSCP_UNIT_FLOW_LH, 0, 0, flow);
+    vscp_encode_uint16(data, VSCP_UNIT_FLOW_LS, 0, -3, mls);
     return data;
 }
 

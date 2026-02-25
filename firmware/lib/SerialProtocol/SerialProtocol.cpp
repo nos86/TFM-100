@@ -546,20 +546,21 @@ static inline char hex_nibble(uint8_t v)
 
 void SerialProtocol::send_vscp_event(uint16_t class_id,
                                       uint8_t  type_id,
+                                      uint8_t  source_addr,
                                       uint32_t timestamp,
                                       const uint8_t *data,
                                       uint8_t  data_len)
 {
     /*
-     * Format: VSCP;class;type;timestamp;hh,hh,...\r\n
+     * Format: VSCP;class;type;addr;timestamp;hh,hh,...\r\n
      *
-     * Where class and type are decimal, timestamp is decimal (ms),
-     * and each data byte is two uppercase hex digits, comma-separated.
-     * This follows the VSCP string representation convention.
+     * Where class, type, addr and timestamp are decimal, and each data byte
+     * is two uppercase hex digits, comma-separated.
+     * Includes mandatory VSCP source node address (nickname) per the VSCP spec.
      *
      * Maximum line length (8 data bytes):
-     *   "VSCP;" (5) + class(5) + ";" + type(3) + ";" + ts(10) + ";"
-     *   + 8×"HH," (24) + "\r\n" (2) ≈ 51 chars – well within LINE_BUFFER_SIZE.
+     *   "VSCP;" (5) + class(5) + ";" + type(3) + ";" + addr(3) + ";"
+     *   + ts(10) + ";" + 8×"HH," (24) + "\r\n" (2) ≈ 55 chars – within BUFFER.
      */
 
     if (data_len > 8u)
@@ -577,19 +578,25 @@ void SerialProtocol::send_vscp_event(uint16_t class_id,
     // class (decimal)
     char numbuf[12];
     itoa(class_id, numbuf, 10);
-    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 40u); i++)
+    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 44u); i++)
         line_buffer[idx++] = numbuf[i];
     line_buffer[idx++] = ';';
 
     // type (decimal)
     itoa(type_id, numbuf, 10);
-    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 35u); i++)
+    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 40u); i++)
+        line_buffer[idx++] = numbuf[i];
+    line_buffer[idx++] = ';';
+
+    // source node address (decimal, mandatory VSCP field)
+    itoa(source_addr, numbuf, 10);
+    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 36u); i++)
         line_buffer[idx++] = numbuf[i];
     line_buffer[idx++] = ';';
 
     // timestamp (decimal)
     itoa((uint32_t)timestamp, numbuf, 10);
-    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 28u); i++)
+    for (size_t i = 0; numbuf[i] && idx < (LINE_BUFFER_SIZE - 30u); i++)
         line_buffer[idx++] = numbuf[i];
     line_buffer[idx++] = ';';
 
