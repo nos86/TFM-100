@@ -20,44 +20,44 @@ This document describes the simple, line-oriented serial protocol implemented by
   - Erase diagnostics memory. No parameters.
   - Handler: triggers the erase diagnostics callback (set via `set_erase_diagnostics_callback`).
   - Answer: device will respond with:
-    - `E;OK\n\r` on success
-    - `E;ERR;error_code\n\r` on failure
+    - `E;OK\r\n` on success
+    - `E;ERR;error_code\r\n` on failure
 
 - `C;id;value`
   - Calibration command: it is used to change calibration in the firmware.
     - `id` is the identifier of the calibration. Only calibration with identifier can be modified.
     - `value` is an arbitrary string payload interpreted by the firmware.
-  - Example: `C;1;5.2\n\r`
+  - Example: `C;1;5.2\r\n`
   - Handler: triggers the calibration callback (set via `set_calibration_callback`).
   - Answer: device will response as:
-    - `C;OK\n\r` to indicate success
-    - `C;ERR;error_code\n\r` to indicate failure
+    - `C;OK\r\n` to indicate success
+    - `C;ERR;error_code\r\n` to indicate failure
 - `R;chip_id;addrhex;lenhex`
   - Read address on companion chips:
     - `chip_id` is decimal chip id
     - `addrhex` is an address in hex (big-endian, no 0x)
     - `lenhex` is a decimal length.
-  - Example: `R;0;1F2A;16\n\r` (read 16 bytes from address 0x1F2A of chip 0)
+  - Example: `R;0;1F2A;16\r\n` (read 16 bytes from address 0x1F2A of chip 0)
   - Handler: triggers the read callback (set via `set_read_callback`).
   - Answer: device will respond with:
-    - `V;chip;addrhex;lenhex;datahex\n\r` on success
-    - `V;ERR;error_code\n\r` on failure
+    - `V;chip;addrhex;lenhex;datahex\r\n` on success
+    - `V;ERR;error_code\r\n` on failure
 
 - `W;chip_id;addrhex;datahex`
   - Write address on companion chips:
     - `chip_id` is decimal chip id
     - `addrhex` is an address in hex (big-endian, no 0x)
     - `datahex` is even-length hex-encoded bytes. Max data length limited by firmware (48 bytes).
-  - Example: `W;0;1F2A;0A1B2C3D\n\r` (write bytes 0x0A,0x1B,0x2C,0x3D to address 0x1F2A)
+  - Example: `W;0;1F2A;0A1B2C3D\r\n` (write bytes 0x0A,0x1B,0x2C,0x3D to address 0x1F2A)
   - Handler: triggers the write callback (set via `set_write_callback`).
   - Answer: device will respond with:
-    - `W;OK\n\r` on success
-    - `W;ERR;error_code\n\r` on failure
+    - `W;OK\r\n` on success
+    - `W;ERR;error_code\r\n` on failure
 
 - `B`
   - Reboot. No parameters.
   - Handler: triggers the reboot callback (set via `set_reboot_callback`).
-  - Answer: device will respond with `B;OK\n\r` and then reboot.
+  - Answer: device will respond with `B;OK\r\n` and then reboot.
 
 ## Downlink (device -> host) messages
 
@@ -65,12 +65,12 @@ This document describes the simple, line-oriented serial protocol implemented by
   - Parameter report:
     - `key` is a short ASCII key
     - `value` is a decimal or string. Used for telemetry/parameters.
-  - Example: `P;ST;43.2\n\r` (parameter "ST" with value 43.2 - Supply Temperature)
+  - Example: `P;ST;43.2\r\n` (parameter "ST" with value 43.2 - Supply Temperature)
 
 - `L;level;message`
   - Log line:
     - `level` is one of `E` (error), `W` (warning), `I` (info), `D` (debug).
-  - Example: `L;I;Initialization complete\n\r`
+  - Example: `L;I;Initialization complete\r\n`
 
 - `D;count`
   - Diagnostics count: it indicates how many diagnostic trouble codes (DTCs) are currently stored in the device.
@@ -82,19 +82,19 @@ This document describes the simple, line-oriented serial protocol implemented by
     - `SPN-FMI`: SPN and FMI code in hex format `SPN-FMI` (e.g., `12F4-A`).
     - `status`: indicates the status of DTC (`PENDING`, `ACTIVE`, `HEALING`, `HISTORY`)
     - `OC`: occurrence count (decimal).
-  - Example: `D;3\n\r` then several `D;...` lines.
+  - Example: `D;3\r\n` then several `D;...` lines.
 
 - `V;chip;addrhex;lenhex;datahex`
   - Hex dump of `lenhex` bytes at `addrhex` for `chip`. `lenhex` is exactly two hex digits; `datahex` is twice that many hex chars.
   - It is the response to a read command.
-  - Example: `V;0;1F2A;04;0A1B2C3D\n\r`
+  - Example: `V;0;1F2A;04;0A1B2C3D\r\n`
 
 - `C;id;type;value`
   - Calibration status from device:
     - `id` is the calibration identifier
     - `type` is one of `I`,`F`,`S` (int, float, string)
     - `value` is the current calibration value
-  - Example: `C;1;I;0\n\r`
+  - Example: `C;1;I;0\r\n`
 
 ## Error handling and limits
 

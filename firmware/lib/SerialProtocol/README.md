@@ -4,7 +4,7 @@ Lightweight line-based text protocol for MCU ↔️ Web (Web Serial) communicati
 
 Features
 
-- Line-based, tokens separated with `;`, terminated by `\n` (accepts `\r\n`).
+- Line-based, tokens separated with `;`, terminated by `\r\n`.
 - No dynamic allocations, no printf/snprintf, no std::string.
 - Transport-agnostic: write output via weak `proto_write_bytes` hook.
 - Minimal parser for downlink commands: C,R,W,B and send helpers P,L,D,V for uplink.

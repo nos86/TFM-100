@@ -262,7 +262,7 @@ void SerialProtocol::send_param(const char *key, const char *value)
     strcat(line_buffer, key);
     strcat(line_buffer, ";");
     strcat(line_buffer, value);
-    strcat(line_buffer, "\n\r");
+    strcat(line_buffer, "\r\n");
     emit(line_buffer, strlen(line_buffer));
 }
 
@@ -276,7 +276,7 @@ void SerialProtocol::send_log(LogLevel level, const char *message)
     strcpy(line_buffer, "L;x;");
     line_buffer[2] = (char)level;
     strcat(line_buffer, message);
-    strcat(line_buffer, "\n\r");
+    strcat(line_buffer, "\r\n");
     emit(line_buffer, strlen(line_buffer));
 }
 
@@ -289,7 +289,7 @@ void SerialProtocol::send_diag_count(uint8_t count)
 
     strcpy(line_buffer, "D;");
     strcat(line_buffer, numbuf);
-    strcat(line_buffer, "\n\r");
+    strcat(line_buffer, "\r\n");
     emit(line_buffer, strlen(line_buffer));
 }
 
@@ -325,7 +325,7 @@ void SerialProtocol::send_diag_info(uint8_t idx, const char *description, uint32
     // oc
     itoa(oc, numbuf, 10);
     strcat(line_buffer, numbuf);
-    strcat(line_buffer, "\n\r");
+    strcat(line_buffer, "\r\n");
     emit(line_buffer, strlen(line_buffer));
 }
 
@@ -338,7 +338,7 @@ void SerialProtocol::send_calibration_status(uint8_t id, char type, uint8_t valu
 
     strcpy(line_buffer, "C;");
     strcat(line_buffer, numbuf);
-    strcat(line_buffer, "\n\r");
+    strcat(line_buffer, "\r\n");
     emit(line_buffer, strlen(line_buffer));
 }
 
@@ -497,13 +497,14 @@ void SerialProtocol::send_v_dump(uint8_t chip, uint32_t addr, const uint8_t *dat
         line_buffer[idx++] = to_hex((uint8_t)(b >> 4));
         line_buffer[idx++] = to_hex((uint8_t)(b & 0xF));
     }
+    line_buffer[idx++] = '\r';
     line_buffer[idx++] = '\n';
     emit(line_buffer, idx);
 }
 
 void SerialProtocol::send_response(char cmd, bool success, uint8_t error_code)
 {
-    // Format: cmd;OK\n\r or cmd;ERR;error_code\n\r
+    // Format: cmd;OK\r\n or cmd;ERR;error_code\r\n
     size_t idx = 0;
     line_buffer[idx++] = cmd;
     line_buffer[idx++] = ';';
@@ -512,8 +513,8 @@ void SerialProtocol::send_response(char cmd, bool success, uint8_t error_code)
     {
         line_buffer[idx++] = 'O';
         line_buffer[idx++] = 'K';
-        line_buffer[idx++] = '\n';
         line_buffer[idx++] = '\r';
+        line_buffer[idx++] = '\n';
         emit(line_buffer, idx);
     }
     else
@@ -530,8 +531,8 @@ void SerialProtocol::send_response(char cmd, bool success, uint8_t error_code)
         {
             line_buffer[idx++] = numbuf[i++];
         }
-        line_buffer[idx++] = '\n';
         line_buffer[idx++] = '\r';
+        line_buffer[idx++] = '\n';
         emit(line_buffer, idx);
     }
 }
