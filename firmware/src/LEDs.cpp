@@ -192,8 +192,6 @@ void LEDs::process()
             gr_co = GenericLedStatus & LED_flash_1;
         else if (node_status == SETUP)
             gr_co = (GenericLedStatus & LED_flicker) == 0; // Inverted
-        else if (node_status == RUN)
-            gr_co = 1;
         else
             gr_co = 0;
 

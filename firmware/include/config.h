@@ -26,7 +26,7 @@
 
 #define MODEL 0x01            // TFM-100
 #define VARIANT VARIANT_FULL  // Default variant
-#define FIRMWARE_VERSION 0xFF // Test
+#define FIRMWARE_VERSION 0x01 // Production version 1
 
 #define PT100_FILTER_RC 5000  // 5s
 #define PT100_SAMPLE_RATE 100 // 100ms

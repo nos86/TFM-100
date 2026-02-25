@@ -52,10 +52,6 @@ void DiagComm::periodically_update()
 {
     float power = getThermalPower(supply_sensor.average_temperature, return_sensor.average_temperature, flowObj.getFlow());
 
-    char powerStr[16];
-    dtostrf(power*1000, 6, 3, powerStr); // width=6, precision=3
-    comm.send_log(SerialProtocol::LOG_INFO, powerStr);
-
     comm.send_param("ST", supply_sensor.average_temperature, 1);
     comm.send_param("RT", return_sensor.average_temperature, 1);
     comm.send_param("WF", flowObj.getFlow(), 1);

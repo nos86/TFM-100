@@ -276,7 +276,7 @@ void setup()
   j1939 = new J1939Manager(canAdapter, j1939_cbs);
   j1939->begin(node_id);
 
-  // // Initialize flow sensor (callback currently a stub)
+  // Initialize flow sensor (callback integrates energy on each flow tick)
   flowObj.begin([](float flow)
                 {
                 // Increase energy counters based on last measured temperatures
@@ -287,7 +287,7 @@ void setup()
                                       return_sensor.last_temperature,
                                       flow); });
 
-  // // Add message objects to J1939 manager
+  // Add message objects to J1939 manager
   j1939->registerMessage(&HBMessage);
   j1939->registerMessage(&TempMessage);
   j1939->registerMessage(&TempAndFlowMessage);
