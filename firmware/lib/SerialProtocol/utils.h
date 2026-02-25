@@ -49,7 +49,7 @@ static inline void mini_udec_padded(char *dst, unsigned long value, uint8_t widt
     else
     {
         unsigned long v = value;
-        while (v > 0)
+        while (v > 0 && len < (int)(sizeof(tmp) - 1))
         {
             tmp[len++] = '0' + (v % 10);
             v /= 10;
