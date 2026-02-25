@@ -93,8 +93,12 @@ public:
     /** @brief Return total accumulated energy (kWh) */
     float getEnergyTotal() { return energy_total; }
 
-    /** @brief Return true if last EEPROM load failed (data invalid) */
-    bool hasEepromFailure() { return eeprom_failure; }
+    /**
+     * @brief Check if EEPROM load was successful.
+     * @return true if EEPROM data was loaded correctly, false otherwise
+     * @remarks Returns false if last EEPROM load failed or data was invalid.
+     */
+    bool eepromLoadOk() const { return !eeprom_failure; }
 
     /**
      * @brief Reset both 24h and total energy and persist to EEPROM
