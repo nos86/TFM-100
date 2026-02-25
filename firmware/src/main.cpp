@@ -81,56 +81,6 @@ bool HwFailure = true; // Assume HW failure until all init done
 
 // serial writer provided below as a free function
 
-// Mock/hook prototypes for commands handled via protocol
-// These are lightweight implementations — replace with real hardware hooks in app.
-void apply_calibration(uint8_t id, const char *value, uint8_t vlen)
-{
-  // Example: log calibration application
-  char buf[48];
-  size_t n = 0;
-  buf[n++] = 'C';
-  buf[n++] = ';';
-  // id
-  if (id == 0)
-  {
-    buf[n++] = '0';
-  }
-  else
-  {
-    buf[n++] = '0' + (id % 10);
-  }
-  buf[n++] = ';';
-  // copy value
-  for (uint8_t i = 0; i < vlen && n < (sizeof(buf) - 2); i++)
-    buf[n++] = value[i];
-  buf[n++] = '\n';
-  Serial.write((const uint8_t *)buf, n);
-}
-
-// Mock remote read/write for MCP and MAX devices
-void mcp_read(uint8_t chip, uint32_t addr, uint8_t len)
-{
-  // produce dummy data (incrementing)
-  // uint8_t sample[8];
-  // for (uint8_t i = 0; i < len && i < 8; i++)
-  //   sample[i] = (uint8_t)(addr + i);
-  // // comm.send_v_dump(chip, addr, sample, len);
-}
-
-void mcp_write(uint8_t chip, uint32_t addr, const uint8_t *data, uint8_t dlen)
-{
-  // Acknowledge by echoing back V dump
-  // comm.send_v_dump(chip, addr, data, dlen);
-}
-
-void do_reboot()
-{
-  // Graceful message then watchdog
-  // comm.send_log(SerialProtocol::LOG_INFO, "Rebooting");
-  wdt_enable(WDTO_15MS);
-  while (1)
-    ;
-}
 
 /* CAN Messages */
 HeartbeatMessage HBMessage = HeartbeatMessage(5000); // 5s interval

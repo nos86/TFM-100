@@ -134,13 +134,15 @@ function onResetDsm() {
   emits('reset_dsm');
 }
 
-function getColorForStatus(status: String) {
+function getColorForStatus(status: string) {
   switch (status) {
     case "HISTORY": return "indigo";
     case "PENDING": return "orange";
     case "ACTIVE": return "pink";
     case "HEALING": return "amber";
-    default: return "blue";
+    default:
+      console.warn(`Unexpected fault status '${status}', falling back to 'blue' color`);
+      return "blue";
   }
 }
 

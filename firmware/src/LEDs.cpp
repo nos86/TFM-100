@@ -43,7 +43,7 @@
 #include <status.h>
 #include "diag_comm.h"
 
-extern NodeStatus_t node_status; // main.cpp
+
 extern uint8_t severity;         // main.cpp
 extern DiagComm diagComm;
 

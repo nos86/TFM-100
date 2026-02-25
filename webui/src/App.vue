@@ -159,7 +159,7 @@ onMounted(() => {
             }
           } else if (newCount < oldCount) {
             // Remove entries beyond newCount
-            faults.value = faults.value.slice(0, newCount)
+            faults.value.splice(newCount)
           }
           // If newCount == oldCount, do nothing (no change in size)
         } else {
@@ -185,5 +185,8 @@ onMounted(() => {
     log_list.value.push({ level: 'DEBUG', message: hex, dt: new Date() })
   }))
 })
-onBeforeUnmount(() => { off.forEach(fn => fn()) })
+onBeforeUnmount(() => {
+  off.forEach(fn => fn())
+  off.length = 0
+})
 </script>

@@ -23,17 +23,15 @@ This document describes the simple, line-oriented serial protocol implemented by
     - `E;OK\n\r` on success
     - `E;ERR;error_code\n\r` on failure
 
-- `C;id;type;value`
+- `C;id;value`
   - Calibration command: it is used to change calibration in the firmware.
     - `id` is the identifier of the calibration. Only calibration with identifier can be modified.
-    - `type` specifies how to parse the value (according to [printf format specifiers](https://cplusplus.com/reference/cstdio/printf/).
-    - `value` is an arbitrary string payload.
-  - Example: `C;1;f;5.2\n\r`
+    - `value` is an arbitrary string payload interpreted by the firmware.
+  - Example: `C;1;5.2\n\r`
   - Handler: triggers the calibration callback (set via `set_calibration_callback`).
   - Answer: device will response as:
     - `C;OK\n\r` to indicate success
     - `C;ERR;error_code\n\r` to indicate failure
-
 - `R;chip_id;addrhex;lenhex`
   - Read address on companion chips:
     - `chip_id` is decimal chip id
@@ -127,7 +125,7 @@ V;0;0100;10;11223344556677889900AABBCCDDEEFF
 - Host sets calibration id 2 to value 1.5:
 
 ```text
-C;2;F,1.5
+C;2;F;1.5
 ```
 
 - Device logs an info:
