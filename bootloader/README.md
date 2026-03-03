@@ -130,7 +130,7 @@ and memory protection. This guide uses three fuse bytes:
     *   `SPIEN` = 0 (programmed): SPI programming interface enabled.
 
 *   **EFUSE (Extended Fuse) = `0xCB`** (`0xCB` = `0b11001011`):
-    *   `BODLEVEL[2:0]` = `011`: sets the Brown-Out Detection threshold to 2.4 V,
+    *   `BODLEVEL[2:0]` = `011`: sets the Brown-Out Detection threshold to 2.6 V,
         preventing flash corruption if the supply voltage drops too low.
     *   `HWBE` = 1 (unprogrammed): the Hardware Boot Enable pin (HWB) is disabled;
         the bootloader is always entered on reset (see `BOOTRST` above).
