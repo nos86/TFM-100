@@ -100,8 +100,8 @@ function onResetTotal() {
 }
 
 function onResetDsm() {
-  // Send erase command to device: E\r\n
-  serial.write('E\r\n')
+  // Send erase command to device (lineEnding is appended automatically by the serial service)
+  serial.write('E')
   // Clear faults from UI
   faults.value = []
 }
