@@ -17,7 +17,7 @@ void J1939_DM::getErrorCode(uint8_t index, uint32_t &spn, uint8_t &fmi, uint8_t 
     const uint8_t idx = DSM.getIndexForActiveErrorAt(index);
     dtc_dict_instance.getSPN(idx, spn);
     dtc_dict_instance.getFMI(idx, fmi);
-    oc = DSM.getOccurrenceCount(index);
+    oc = DSM.getOccurrenceCount(idx);
 }
 
 J1939_DM::LampStatus J1939_DM::getWarningLampStatus()
