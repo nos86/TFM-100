@@ -23,6 +23,6 @@ export function createWebSerialPlugin(options: WebSerialPluginOptions = {}) {
 
 export function useSerial(): { service: WebSerialService; state: UnwrapNestedRefs<SerialState> } {
   const ctx = inject<{ service: WebSerialService; state: UnwrapNestedRefs<SerialState> }>(key);
-  if (!ctx) throw new Error("WebSerialPlugin non installato");
+  if (!ctx) throw new Error("Plugin WebSerial non installato");
   return ctx;
 }
