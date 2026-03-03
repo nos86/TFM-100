@@ -53,3 +53,7 @@ dkms.conf
 
 # Bootloader hex files
 !bootloader/*.hex
+
+#Webui build
+webui/node_modules
+webui/.vite
