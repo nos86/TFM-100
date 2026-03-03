@@ -21,10 +21,10 @@
               :temp-mandata-c="tempMandataC"
               :temp-ritorno-c="tempRitornoC"
               :water-flow-lh="waterFlowLh"
-              :powerKW="powerKW"
-              :powerPerc="powerPerc"
-              :energy24hKWh="energy24hKWh"
-              :energyTotalKWh="energyTotalKWh"
+              :power-kW="powerKW"
+              :power-perc="powerPerc"
+              :energy24h-kwh="energy24hKWh"
+              :energyTotal-kwh="energyTotalKWh"
               @reset-energy-24h="onReset24h"
               @reset-energy-total="onResetTotal"
             />
@@ -101,7 +101,7 @@ function onResetTotal() {
 
 function onResetDsm() {
   // Send erase command to device: E\r\n
-  serial.write('E\r\n')
+  serial.write('E')
   // Clear faults from UI
   faults.value = []
 }

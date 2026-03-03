@@ -45,7 +45,7 @@ export class WebSerialService {
   }
 
   async requestPort() {
-    if (!this.serial) throw new Error("Web Serial non disponibile");
+    if (!this.serial) throw new Error("Web Serial not available");
     this.port = await this.serial.requestPort({ filters: this.opts.filters });
     this.state.selectedPort = this.port;
     if (this.state.ports.every(p => p !== this.port)) this.state.ports.push(this.port);
@@ -77,7 +77,7 @@ export class WebSerialService {
   }
 
   async open(baud?: number) {
-    if (!this.port) throw new Error("Nessuna porta selezionata");
+    if (!this.port) throw new Error("No port selected");
     try {
       const info = this.port.getInfo?.();
       console.debug('[WebSerial] open: attempting to open port', { baud: baud ?? this.opts.baudRate, info });
@@ -151,7 +151,7 @@ export class WebSerialService {
   }
 
   async write(data: string | Uint8Array) {
-    if (!this.writer) throw new Error("Porta non aperta");
+    if (!this.writer) throw new Error("Port not open");
     this.writeQueue = this.writeQueue.then(async () => {
       const payload = (typeof data === 'string' && this.opts.textMode && this.opts.lineEnding)
         ? data + this.opts.lineEnding
