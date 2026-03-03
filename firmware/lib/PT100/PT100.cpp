@@ -2,12 +2,15 @@
 
 // Constructor for the PT100 class.
 // Initializes the sensor object.
-PT100::PT100(int csPin) : sensor(csPin), measurementRunning(false), errorDetected(false), last_temperature(0.0), last_fault(0)
+PT100::PT100(int csPin) : measurementRunning(false),
+                          alpha(1.0f),
+                          filterInitialized(false),
+                          sensor(csPin),
+                          errorDetected(false),
+                          last_temperature(0.0),
+                          average_temperature(0.0f),
+                          last_fault(0)
 {
-    // Constructor implementation
-    filterInitialized = false;
-    alpha = 1;
-    average_temperature = 0;
 }
 
 bool PT100::begin()
