@@ -23,8 +23,8 @@ public:
         // Attempt to load persisted state from EEPROM
         if (!loadFromEEPROM())
         {
-            // No valid data, start from zero
-            max_power = 0.0f;
+            // No valid data, start from default maximum power
+            max_power = 24.0f;
             saveToEEPROM(true); // write magic
         }
     }
@@ -48,7 +48,7 @@ public:
 
     /**
      * @brief Set a new maximum power value.
-     * @param new_max_power New maximum power value (kWh)
+     * @param new_max_power New maximum power value (kW)
      * @return true if max_power updated, false if new_max_power is not greater than current
      * @remarks Persists the new value to EEPROM if updated.
      */
@@ -56,13 +56,13 @@ public:
 
     /**
      * @brief Get the maximum power calibrated.
-     * @return Maximum power (kWh)
+     * @return Maximum power (kW)
      */
     float getMaxPower() const { return max_power; }
 
     /**
      * @brief Get the current power consumption.
-     * @return Current power (kWh)
+     * @return Current power (kW)
      */
     float getPower() const { return power; }
 
@@ -78,7 +78,7 @@ private:
      * @brief Magic number used to validate EEPROM data integrity.
      * @note Change this value if EEPROM layout changes.
      */
-    const uint16_t magic = 0x9449; // Magic number to validate EEPROM data
+    const uint16_t magic = 0x944A; // Magic number to validate EEPROM data
 
     float power = 0.0f;          // Current/instantaneous power (kW)
     float max_power = 0.0f;      // Maximum observed power (kW)

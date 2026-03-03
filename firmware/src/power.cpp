@@ -23,7 +23,7 @@ float Power::getPowerPercent()
 }
 
 /**
- * @brief Load persisted energy state from EEPROM into this instance
+ * @brief Load persisted power state from EEPROM into this instance
  * @return true if valid data was loaded (magic matches), false otherwise
  */
 bool Power::loadFromEEPROM()
