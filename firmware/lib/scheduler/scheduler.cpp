@@ -17,10 +17,13 @@ uint8_t Scheduler::addTask(void (*taskFunc)(uint32_t), uint32_t period)
 void Scheduler::run()
 {
     uint32_t currentTime = millis();
-    uint32_t delta = currentTime - last_millis;
-    if (delta < 0)
+    uint32_t delta;
+    if (currentTime >= last_millis)
     {
-        systemTime += (0xFFFFFFFF - last_millis);
+        delta = currentTime - last_millis;
+    } else {
+        // Handle millis() overflow
+        delta = (UINT32_MAX - last_millis) + currentTime + 1;
     }
     systemTime += delta;
     last_millis = currentTime;
