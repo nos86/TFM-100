@@ -24,7 +24,7 @@
               :power-kW="powerKW"
               :power-perc="powerPerc"
               :energy24h-kwh="energy24hKWh"
-              :energyTotal-kwh="energyTotalKWh"
+              :energy-total-kwh="energyTotalKWh"
               @reset-energy-24h="onReset24h"
               @reset-energy-total="onResetTotal"
             />

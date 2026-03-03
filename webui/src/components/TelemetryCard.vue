@@ -63,7 +63,7 @@
           <v-list-item :prepend-icon="isMobile ? '' : 'mdi-transmission-tower'">
             <v-list-item-title>Potenza istantanea:</v-list-item-title>
             <template v-slot:append>
-              {{ fmt(powerKW) }} kW
+              {{ fmt(powerKw) }} kW
             </template>
           </v-list-item>
 
@@ -113,7 +113,7 @@ const props = defineProps({
   tempMandataC: { type: Number, required: true },
   tempRitornoC: { type: Number, required: true },
   waterFlowLh: { type: Number, required: true },
-  powerKW: { type: Number, required: true },
+  powerKw: { type: Number, required: true },
   powerPerc: { type: Number, default: 10 },
   energy24hKwh: { type: Number, required: true },
   energyTotalKwh: { type: Number, required: true },
