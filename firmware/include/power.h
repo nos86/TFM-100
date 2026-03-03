@@ -48,7 +48,7 @@ public:
 
     /**
      * @brief Set a new maximum power value.
-     * @param new_max_power New maximum power value (kWh)
+     * @param new_max_power New maximum power value (kW)
      * @return true if max_power updated, false if new_max_power is not greater than current
      * @remarks Persists the new value to EEPROM if updated.
      */
@@ -56,13 +56,13 @@ public:
 
     /**
      * @brief Get the maximum power calibrated.
-     * @return Maximum power (kWh)
+     * @return Maximum power (kW)
      */
     float getMaxPower() const { return max_power; }
 
     /**
      * @brief Get the current power consumption.
-     * @return Current power (kWh)
+     * @return Current power (kW)
      */
     float getPower() const { return power; }
 
