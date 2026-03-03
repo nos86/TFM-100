@@ -1,101 +1,150 @@
 # Flashing the Bootloader on ATmega32U4 Using avrdude
 
-This guide explains how to flash the bootloader onto an ATmega32U4 microcontroller using an Arduino as an ISP programmer and the `avrdude` command. This will also guide you through the necessary pin connections and explain the meaning of fuse settings.
+This guide explains how to flash the bootloader onto an ATmega32U4 microcontroller
+using a USBasp programmer and the `avrdude` command. It covers the necessary pin
+connections and explains the meaning of fuse settings.
 
 ## Prerequisites
-- **ATmega32U4 microcontroller**: The target chip for the bootloader.
-- **Arduino as ISP**: A second Arduino used to program the ATmega32U4 via ISP (In-System Programming).
-- **avrdude**: The tool used to interface with the ATmega32U4 via the Arduino ISP.
-- **Caterina Bootloader Hex File**: The bootloader file (`Caterina-promicro8.hex`) for the ATmega32U4.
-- **AVRDUDE Configuration File**: `avrdude.conf` file.
-- **Arduino IDE**: Required to upload the `ArduinoISP` sketch to the second Arduino.
+
+*   **ATmega32U4 microcontroller**: The target chip for the bootloader.
+*   **USBasp programmer**: A low-cost USB programmer for Atmel AVR microcontrollers.
+*   **avrdude**: The tool used to interface with the ATmega32U4 via the USBasp.
+*   **Caterina Bootloader Hex File**: The bootloader file (`Caterina-promicro8.hex`)
+    for the ATmega32U4.
 
 ## Hardware Setup
 
-### Step 1: Connect the Arduino ISP to the ATmega32U4
+### Step 1: Connect the USBasp to the ATmega32U4
 
-To use one Arduino as an ISP programmer, connect the following pins between the two devices:
+The USBasp exposes a standard 10-pin AVR ISP header. The pin numbering (odd pins
+on the left column, even pins on the right column, pin 1 indicated by the triangle
+or notch on the connector) is:
 
-| **Arduino ISP Pin** | **ATmega32U4 Pin** | 
-|---------------------|--------------------|
-| **MOSI (D11)**   | MOSI            | 
-| **MISO (D12)**   | MISO             | 
-| **SCK (D13)**    | SCK               | 
-| **SS (D10)**     | RESET             | 
-| **GND**          | GND               | 
-| **5V**           | **DO NOT CONNECT IT** |
+```
+10-pin AVR ISP header (front view)
+        ┌───────┬
+ MOSI ← │  1  2 │ → VCC
+   NC ← │  3  4 │ → GND
+  RST ← │  5  6 │ → GND
+  SCK ← │  7  8 │ → GND
+ MISO ← │  9 10 │ → GND
+        └───────┘
+```
 
-![Wiring diagram](Arduino_ISP_wires.jpg)
+Connect the relevant signals to the ATmega32U4 as follows:
 
-**Note**: For this board, the power supply is 3.3V. So to correctly power the board be sure that a 3V3 device is used as programmer; otherwise do not connect the VCC of the programmer and power the target board via USB
+| 10-pin ISP Pin | Signal | ATmega32U4 Pin     |
+| -------------- | ------ | ------------------ |
+| 1              | MOSI   | MOSI               |
+| 2              | VCC    | **CONNECTED ONLY IF 3.3V** |
+| 4 / 6 / 8 / 10 | GND   | GND                |
+| 5              | RST    | RESET              |
+| 7              | SCK    | SCK                |
+| 9              | MISO   | MISO               |
 
+> **Note**: This board uses a 3.3 V power supply. Use VCC from USBasp
+> only if it is able to provide 3.3V and **NOT** 5V, otherwise power the
+> target board separately via USB.
 
-### Step 2: Load the Arduino ISP Sketch
+#### Adapter for 6-pin ICSP Connectors
 
-1. Open the Arduino IDE.
-2. Select the board as **Arduino Uno** (or whichever Arduino you're using).
-3. Go to **File > Examples > 11.ArduinoISP > ArduinoISP** and upload the sketch to your Arduino.
+To simplify the connection with standard 6-pin ICSP header, you can use a 10-to-6 
+pin ISP adapter to connect the USBasp directly without individual wires:
 
-### Step 3: Verify the Connections
+![10-to-6 pin ISP adapter](adapter.png)
 
-Make sure that the connections are correct as outlined in the table above before proceeding to the next steps.
+These adapters convert the USBasp 10-pin IDC connector to the 6-pin ICSP layout and
+are widely available online.
+
+### Step 2: Verify the Connections
+
+Make sure the connections are correct as outlined in the table above before
+proceeding to the next steps.
 
 ## Flashing the Bootloader
 
-Once the hardware is set up, you can flash the bootloader on the ATmega32U4 using `avrdude`.
+Once the hardware is set up, flash the bootloader on the ATmega32U4 using `avrdude`.
 
-### Step 4: Run avrdude to Flash the Bootloader
+### Step 3: Program the Fuses
 
-Run the following command from the terminal or command prompt:
+Because the crystal oscillator fuses may be incorrectly configured, the ISP clock
+must be reduced to a very low speed (`-B400`) for the initial fuse programming step.
+
+Run the following command from the terminal:
 
 ```bash
-avrdude -PCOM4 -C avrdude.conf -b19200 -cstk500v1 -pm32u4 -e -U flash:w:Caterina-promicro8.hex -U lfuse:w:0xFF:m -U hfuse:w:0xD8:m -U efuse:w:0xCB:m
+avrdude -cusbasp -pm32u4 -B400 -U lfuse:w:0xFF:m -U hfuse:w:0xD8:m -U efuse:w:0xCB:m
 ```
 
-### Explanation of the Command:
+**Explanation of flags:**
 
-- `-PCOM4`: Specifies the COM port of the Arduino ISP programmer. You can check the port from your system's device manager (Windows) or `ls /dev/tty*` (Linux/macOS).
-- `-C avrdude.conf`: Specifies the location of the `avrdude.conf` file, which contains configuration data for `avrdude`.
-- `-b19200`: The baud rate for communication, set to `19200`.
-- `-cstk500v1`: Specifies the programmer type. In this case, it uses the "stk500v1" protocol for Arduino ISP.
-- `-pm32u4`: Tells `avrdude` to target the ATmega32U4 microcontroller.
-- `-e`: Erases the flash memory of the ATmega32U4 before programming.
-- `-U flash:w:Caterina-promicro8.hex`: Writes the bootloader (`Caterina-promicro8.hex`) to the flash memory of the ATmega32U4.
-- `-U lfuse:w:0xFF:m`: Sets the low fuse to `0xFF` (using the external crystal oscillator with no prescaler).
-- `-U hfuse:w:0xD8:m`: Sets the high fuse to `0xD8` (bootloader enabled).
-- `-U efuse:w:0xCB:m`: Sets the extended fuse to `0xCB` (default protection settings).
+*   `-cusbasp`: Selects the USBasp as the programmer.
+*   `-pm32u4`: Targets the ATmega32U4 microcontroller.
+*   `-B400`: Sets the ISP bit-clock period to 400 µs (very slow) to communicate
+    reliably when the crystal is not yet configured correctly.
+*   `-U lfuse:w:0xFF:m`: Sets the low fuse to `0xFF` (external crystal, no
+    prescaler).
+*   `-U hfuse:w:0xD8:m`: Sets the high fuse to `0xD8` (`BOOTRST` programmed so
+    the chip resets into the bootloader; `BOOTSZ=00` selects the 4096-byte
+    bootloader section).
+*   `-U efuse:w:0xCB:m`: Sets the extended fuse to `0xCB` (Brown-Out Detection
+    threshold at 2.4 V; Hardware Boot Enable pin disabled).
+
+### Step 4: Flash the Bootloader
+
+After the fuses are correctly set the chip can be programmed at full ISP speed.
+
+Run the following command from the terminal:
+
+```bash
+avrdude -cusbasp -pm32u4 -e -U flash:w:Caterina-promicro8.hex
+```
+
+**Explanation of flags:**
+
+*   `-cusbasp`: Selects the USBasp as the programmer.
+*   `-pm32u4`: Targets the ATmega32U4 microcontroller.
+*   `-e`: Erases the flash memory of the ATmega32U4 before programming.
+*   `-U flash:w:Caterina-promicro8.hex`: Writes the Caterina bootloader to flash.
 
 ### Step 5: Wait for the Process to Complete
 
-`avrdude` will now write the bootloader to the ATmega32U4. Wait for the process to finish. You should see a message indicating successful programming.
+`avrdude` will write the bootloader to the ATmega32U4. Wait for the process to
+finish. You should see a message indicating successful programming.
 
 ## Fuse Explanation
 
-Fuses are special bits stored in the ATmega32U4 that control the configuration of the microcontroller's hardware. The fuses set options such as the clock source, bootloader settings, and memory protection. In this case, we have three fuse settings:
+Fuses are special bits stored in the ATmega32U4 that control the hardware
+configuration of the microcontroller, such as the clock source, bootloader settings,
+and memory protection. This guide uses three fuse bytes:
 
-- **LFUSE (Low Fuse) = 0xFF**:  
-  This sets the clock source and prescaler for the ATmega32U4.  
-  - `0xFF` means:
-    - **External crystal oscillator** is used.
-    - **No clock division** (prescaler = 1). The chip will run at the full 8 MHz frequency of the external crystal.
+*   **LFUSE (Low Fuse) = `0xFF`**: Selects the external crystal oscillator as the
+    clock source with no clock division (prescaler = 1). The chip runs at the full
+    8 MHz frequency of the external crystal.
 
-- **HFUSE (High Fuse) = 0xD8**:  
-  This sets various options including the bootloader behavior.  
-  - `0xD8` means:
-    - **BOOTRST** is set to 1, which means the microcontroller will start executing the bootloader at reset (useful if you want to program the device via USB).
-    - **Disable JTAG (optional)**.
+*   **HFUSE (High Fuse) = `0xD8`** (`0xD8` = `0b11011000`):
+    *   `BOOTRST` = 0 (programmed, active-low): the MCU jumps to the bootloader
+        section on every reset, enabling USB programming.
+    *   `BOOTSZ[1:0]` = `00` (both bits programmed): selects the maximum 2048-word
+        (4096-byte) bootloader section.
+    *   `SPIEN` = 0 (programmed): SPI programming interface enabled.
 
-- **EFUSE (Extended Fuse) = 0xCB**:  
-  This controls settings like the bootloader size and EEPROM options.  
-  - `0xCB` means:
-    - **Bootloader size** set to 2048 bytes.
-    - **No protection** is enabled on the EEPROM.
+*   **EFUSE (Extended Fuse) = `0xCB`** (`0xCB` = `0b11001011`):
+    *   `BODLEVEL[2:0]` = `011`: sets the Brown-Out Detection threshold to 2.6 V,
+        preventing flash corruption if the supply voltage drops too low.
+    *   `HWBE` = 1 (unprogrammed): the Hardware Boot Enable pin (HWB) is disabled;
+        the bootloader is always entered on reset (see `BOOTRST` above).
 
 ## Troubleshooting
 
-- **"Verification Error"**: If you get a verification error after flashing the bootloader, try re-running the avrdude command with `-v` for verbose output to help diagnose the problem.
-- **No COM port detected**: Ensure that the Arduino ISP is properly connected and that the correct port is selected in the `-PCOM4` part of the `avrdude` command.
+*   **Verification error**: Re-run the `avrdude` command with the `-v` flag for
+    verbose output to help diagnose the problem.
+*   **USBasp not detected**: Ensure the USBasp is properly connected via USB and
+    that its drivers are installed. On Linux you may need to add a udev rule or run
+    `avrdude` with `sudo`.
 
 ---
 
-This guide provides step-by-step instructions to program an ATmega32U4 with the **Caterina bootloader** using an Arduino as ISP and explains the fuse settings. Follow the steps carefully to ensure successful bootloader flashing.
+This guide provides step-by-step instructions to program an ATmega32U4 with the
+**Caterina bootloader** using a USBasp programmer and explains the fuse settings.
+Follow the steps carefully to ensure successful bootloader flashing.
