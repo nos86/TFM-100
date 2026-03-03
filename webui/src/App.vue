@@ -151,8 +151,8 @@ onMounted(() => {
             for (let i = oldCount; i < newCount; i++) {
               faults.value[i] = {
                 name: "UNKNOWN",
-                spn: "0",
-                fmi: "0",
+                spn: 0,
+                fmi: 0,
                 oc: 0,
                 status: "ACTIVE"
               }
@@ -167,8 +167,8 @@ onMounted(() => {
           const index = parseInt(data[1])
           faults.value[index] = {
             name: data[2],
-            spn: data[3].split("-")[0],
-            fmi: data[3].split("-")[1],
+            spn: parseInt(data[3].split("-")[0]),
+            fmi: parseInt(data[3].split("-")[1]),
             oc: parseInt(data[5]),
             status: data[4]
           }
