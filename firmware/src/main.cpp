@@ -363,6 +363,9 @@ void loop()
   return_sensor.process();
   flowObj.process();
 
+  // Persist energy counters to EEPROM at most once per minute (rate-limited to reduce EEPROM wear)
+  energyObj.persistIfDue(millis());
+
   diagComm.process(millis());
 
   // Set node mode depending on flow present
