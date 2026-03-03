@@ -22,7 +22,7 @@ or notch on the connector) is:
 
 ```
 10-pin AVR ISP header (front view)
-        ┌───────┬───────┐
+        ┌───────┬
  MOSI ← │  1  2 │ → VCC
    NC ← │  3  4 │ → GND
   RST ← │  5  6 │ → GND
@@ -31,29 +31,27 @@ or notch on the connector) is:
         └───────┘
 ```
 
-For a visual reference, see the
-[USBasp wiring guide](https://www.learningaboutelectronics.com/Articles/Program-AVR-chip-using-a-USBASP-with-10-pin-cable.php).
-
 Connect the relevant signals to the ATmega32U4 as follows:
 
 | 10-pin ISP Pin | Signal | ATmega32U4 Pin     |
 | -------------- | ------ | ------------------ |
 | 1              | MOSI   | MOSI               |
-| 2              | VCC    | **DO NOT CONNECT** |
+| 2              | VCC    | **CONNECTED ONLY IF 3.3V** |
 | 4 / 6 / 8 / 10 | GND   | GND                |
 | 5              | RST    | RESET              |
 | 7              | SCK    | SCK                |
 | 9              | MISO   | MISO               |
 
-> **Note**: This board uses a 3.3 V power supply. Do not connect the VCC pin of the
-> USBasp. Power the target board separately via USB instead.
+> **Note**: This board uses a 3.3 V power supply. Use VCC from USBasp
+> only if it is able to provide 3.3V and **NOT** 5V, otherwise power the
+> target board separately via USB.
 
 #### Adapter for 6-pin ICSP Connectors
 
-If the board has a standard 6-pin ICSP header, use a 10-to-6 pin ISP adapter to
-connect the USBasp directly without individual wires:
+To simplify the connection with standard 6-pin ICSP header, you can use a 10-to-6 
+pin ISP adapter to connect the USBasp directly without individual wires:
 
-![10-to-6 pin ISP adapter](https://m.media-amazon.com/images/I/61qYq5dlzkL._AC_SL1234_.jpg)
+![10-to-6 pin ISP adapter](adapter.png)
 
 These adapters convert the USBasp 10-pin IDC connector to the 6-pin ICSP layout and
 are widely available online.
