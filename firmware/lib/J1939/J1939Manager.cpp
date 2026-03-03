@@ -407,9 +407,6 @@ void J1939Manager::processRegisteredMessages(uint16_t now_ms)
             if (data != nullptr && len > 0)
             {
                 bool ok = sendCopy(msg->getPGN(), data, len, msg->getDestination(), msg->getPriority());
-                // Reclaim the payload buffer now that it has been copied into the pool.
-                delete[] data;
-                data = nullptr;
                 if (!ok)
                     last_error_ = J1939TxError::POOL_NO_SPACE;
             }
