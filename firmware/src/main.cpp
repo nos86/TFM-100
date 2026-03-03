@@ -150,6 +150,10 @@ void processReceivedCanMessages()
   INT32U canId = 0;
   INT8U ext = 0;
 
+  // Clear the interrupt flag before draining the RX buffer so any interrupt
+  // arriving during processing sets the flag again and is handled next loop.
+  canRxPending = false;
+
   // Process all available CAN messages
   while (CAN0.checkReceive() == CAN_MSGAVAIL)
   {
@@ -181,9 +185,6 @@ void processReceivedCanMessages()
       }
     }
   }
-
-  // Clear the interrupt flag after processing all messages
-  canRxPending = false;
 }
 
 void setup()
