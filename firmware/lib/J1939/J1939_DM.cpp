@@ -24,7 +24,7 @@ uint8_t *J1939_DM1Message::buildPayload(uint8_t *len)
 {
     uint8_t numberOfErrors = J1939_DM::getNumberOfActiveErrors();
     *len = 2 + numberOfErrors * 4;
-    uint8_t *payload = new uint8_t[*len];
+    static uint8_t payload[DIAGNOSTICS_MEMORY_SIZE * 4 + 2]; // max size: 2 bytes for lamp status + 4 bytes per DTC
     if (!payload)
     {
         *len = 0;
