@@ -70,14 +70,14 @@
           <v-list-item :prepend-icon="isMobile ? '' : 'mdi-clock'">
             <v-list-item-title>Energia 24h</v-list-item-title>
             <template v-slot:append>
-              {{ fmt(energy24hKWh) }} kWh
+              {{ fmt(energy24hKwh) }} kWh
             </template>
           </v-list-item>
 
           <v-list-item :prepend-icon="isMobile ? '' : 'mdi-lightning-bolt'">
             <v-list-item-title>Energia totale:</v-list-item-title>
             <template v-slot:append>
-              {{ fmt(energyTotalKWh) }} kWh
+              {{ fmt(energyTotalKwh) }} kWh
             </template>
           </v-list-item>
         </v-col>
@@ -115,8 +115,8 @@ const props = defineProps({
   waterFlowLh: { type: Number, required: true },
   powerKW: { type: Number, required: true },
   powerPerc: { type: Number, default: 10 },
-  energy24hKWh: { type: Number, required: true },
-  energyTotalKWh: { type: Number, required: true },
+  energy24hKwh: { type: Number, required: true },
+  energyTotalKwh: { type: Number, required: true },
 })
 
 // Emits for parent to handle resets
