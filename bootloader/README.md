@@ -84,9 +84,11 @@ avrdude -cusbasp -pm32u4 -B400 -U lfuse:w:0xFF:m -U hfuse:w:0xD8:m -U efuse:w:0x
     reliably when the crystal is not yet configured correctly.
 *   `-U lfuse:w:0xFF:m`: Sets the low fuse to `0xFF` (external crystal, no
     prescaler).
-*   `-U hfuse:w:0xD8:m`: Sets the high fuse to `0xD8` (bootloader enabled).
-*   `-U efuse:w:0xCB:m`: Sets the extended fuse to `0xCB` (2048-byte bootloader
-    size).
+*   `-U hfuse:w:0xD8:m`: Sets the high fuse to `0xD8` (`BOOTRST` programmed so
+    the chip resets into the bootloader; `BOOTSZ=00` selects the 4096-byte
+    bootloader section).
+*   `-U efuse:w:0xCB:m`: Sets the extended fuse to `0xCB` (Brown-Out Detection
+    threshold at 2.4 V; Hardware Boot Enable pin disabled).
 
 ### Step 4: Flash the Bootloader
 
@@ -120,12 +122,18 @@ and memory protection. This guide uses three fuse bytes:
     clock source with no clock division (prescaler = 1). The chip runs at the full
     8 MHz frequency of the external crystal.
 
-*   **HFUSE (High Fuse) = `0xD8`**: Enables the bootloader and sets `BOOTRST` so
-    that the microcontroller begins executing the bootloader on reset, allowing
-    programming over USB.
+*   **HFUSE (High Fuse) = `0xD8`** (`0xD8` = `0b11011000`):
+    *   `BOOTRST` = 0 (programmed, active-low): the MCU jumps to the bootloader
+        section on every reset, enabling USB programming.
+    *   `BOOTSZ[1:0]` = `00` (both bits programmed): selects the maximum 2048-word
+        (4096-byte) bootloader section.
+    *   `SPIEN` = 0 (programmed): SPI programming interface enabled.
 
-*   **EFUSE (Extended Fuse) = `0xCB`**: Sets the bootloader size to 2048 bytes with
-    no EEPROM protection.
+*   **EFUSE (Extended Fuse) = `0xCB`** (`0xCB` = `0b11001011`):
+    *   `BODLEVEL[2:0]` = `011`: sets the Brown-Out Detection threshold to 2.4 V,
+        preventing flash corruption if the supply voltage drops too low.
+    *   `HWBE` = 1 (unprogrammed): the Hardware Boot Enable pin (HWB) is disabled;
+        the bootloader is always entered on reset (see `BOOTRST` above).
 
 ## Troubleshooting
 
