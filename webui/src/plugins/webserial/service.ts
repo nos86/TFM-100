@@ -159,6 +159,9 @@ export class WebSerialService {
       await this.writer!.ready;
       await this.writer!.write(payload);
       this.state.txCounter += (typeof payload === 'string') ? payload.length : payload.byteLength;
+    }).catch((e: any) => {
+      this.state.lastError = e?.message ?? String(e);
+      this.writeQueue = Promise.resolve();
     });
     return this.writeQueue;
   }
