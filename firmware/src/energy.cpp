@@ -51,6 +51,22 @@ void Energy::increase_energy(float supply_temp, float return_temp, float volume_
     energy_total += dE;
     energy_24h += dE;
 
-    // Persist
-    saveToEEPROM();
+    // Mark as dirty; actual EEPROM write is deferred to persistIfDue()
+    eeprom_dirty = true;
+}
+
+/**
+ * @brief Persist energy to EEPROM if dirty and the minimum interval has elapsed.
+ * @param now_ms Current millis() timestamp
+ */
+void Energy::persistIfDue(uint32_t now_ms)
+{
+    if (!eeprom_dirty)
+        return;
+    if ((now_ms - last_eeprom_save_ms) >= ENERGY_EEPROM_SAVE_INTERVAL_MS)
+    {
+        saveToEEPROM();
+        eeprom_dirty = false;
+        last_eeprom_save_ms = now_ms;
+    }
 }

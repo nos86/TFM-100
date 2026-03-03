@@ -50,6 +50,8 @@
 #define POWER_EEPROM_SIZE   6   // 2 bytes magic + 4 bytes max_power
 #define ENERGY_EEPROM_SIZE 10   // 2 bytes magic + 4 bytes energy_total + 4 bytes energy_24h
 
+#define ENERGY_EEPROM_SAVE_INTERVAL_MS 60000UL // Persist energy to EEPROM at most once per minute
+
 // Compile-time checks to ensure EEPROM regions do not overlap.
 static_assert(POWER_EEPROM_OFFSET + POWER_EEPROM_SIZE <= ENERGY_EEPROM_OFFSET,
               "EEPROM layout error: POWER region overlaps ENERGY region");

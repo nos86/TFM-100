@@ -94,6 +94,14 @@ public:
     float getEnergyTotal() { return energy_total; }
 
     /**
+     * @brief Persist energy to EEPROM if dirty and the minimum interval has elapsed.
+     * @param now_ms Current millis() timestamp
+     * @remarks Call periodically (e.g., every scheduler tick) to bound EEPROM write rate.
+     *          Writes at most once every ENERGY_EEPROM_SAVE_INTERVAL_MS milliseconds.
+     */
+    void persistIfDue(uint32_t now_ms);
+
+    /**
      * @brief Check if EEPROM load was successful.
      * @return true if EEPROM data was loaded correctly, false otherwise
      * @remarks Returns false if last EEPROM load failed or data was invalid.
@@ -123,6 +131,8 @@ private:
     float energy_24h = 0.0f;     // Energy consumed in last 24 hours (kWh)
     float energy_total = 0.0f;   // Total energy consumed (kWh)
     bool eeprom_failure = false; // True if last EEPROM load failed
+    bool eeprom_dirty = false;   // True if in-RAM values differ from last EEPROM save
+    uint32_t last_eeprom_save_ms = 0; // millis() at last EEPROM persist
 
     enum EEPROM_Layout
     {
