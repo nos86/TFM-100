@@ -21,7 +21,7 @@
               :temp-mandata-c="tempMandataC"
               :temp-ritorno-c="tempRitornoC"
               :water-flow-lh="waterFlowLh"
-              :power-kW="powerKW"
+              :power-kw="powerKW"
               :power-perc="powerPerc"
               :energy24h-kwh="energy24hKWh"
               :energy-total-kwh="energyTotalKWh"
