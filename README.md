@@ -113,7 +113,7 @@ The firmware is written in C++ for the Arduino / PlatformIO ecosystem and target
 │  scheduler::run() dispatches tasks at configured intervals  │
 └───────────┬──────────┬──────────┬─────────────┬────────────┘
             │          │          │             │
-     ┌──────▼──┐  ┌────▼────┐  ┌─▼────────┐  ┌▼──────────┐
+     ┌──────▼──┐  ┌────▼────┐  ┌──▼───────┐  ┌──▼────────┐
      │  PT100  │  │  Flow   │  │ J1939Mgr │  │  Serial   │
      │ sensor  │  │ sensor  │  │  (CAN)   │  │  CLI/Log  │
      └──────┬──┘  └────┬────┘  └──────────┘  └──────────-┘
@@ -145,7 +145,6 @@ The firmware is written in C++ for the Arduino / PlatformIO ecosystem and target
 
 | Region | Offset | Size | Contents |
 |---|---|---|---|
-| VSCP | `0x00–0x17` | 24 B | VSCP library state & configuration |
 | Power | `0x1A–0x1F` | 6 B | Magic word + max observed power |
 | Energy | `0x20–0x29` | 10 B | Magic word + cumulative energy + 24 h energy |
 | Diagnostics | `0x40+` | variable | DTC ring buffer |
