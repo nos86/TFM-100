@@ -42,12 +42,14 @@ All measurements are broadcast on a J1939 CAN bus and are also streamed over USB
 |---|---|
 | MCU | **ATmega32U4** |
 | Clock | 8 MHz external crystal |
-| Supply | 5 V (USB or external) |
+| Supply | 5 V system supply and I/O logic (via USB or external 5 V) |
 | Brown-out detection | 2.6 V (efuse `0xCB`) |
-| Bootloader | Caterina (USB-HID, CDC ACM) |
+| Bootloader | Caterina (CDC ACM, `avr109` protocol) |
 | Flash | 28 672 bytes usable |
 
 The ATmega32U4 provides native USB (CDC-ACM serial) without an external USB-to-UART bridge, which means it enumerates directly as a serial port on any OS.
+
+> **Firmware note:** The PlatformIO/Arduino firmware is built using the `ARDUINO_AVR_PROMICRO8` (8 MHz Pro Micro) board definition to match the ATmega32U4 clock and bootloader configuration. The TFM-100 PCB operates at **5 V** — all GPIO logic levels are 5 V. It is **not** a 3.3 V Pro Micro, so connect only 5 V–tolerant peripherals or use appropriate level shifting.
 
 ### 2.2 Temperature Sensing — PT100 RTDs
 
@@ -73,7 +75,7 @@ A pulse-output flow sensor is connected to the hardware interrupt pin. The firmw
 
 ### 2.4 CAN Bus — MCP2515
 
-A **MCP2515** SPI-to-CAN controller provides a J1939-compatible CAN 2.0B interface (29-bit extended IDs) at 1 Mbit/s.
+A **MCP2515** SPI-to-CAN controller provides a J1939-compatible CAN 2.0B interface (29-bit extended IDs) at 250 kbit/s.
 
 | Signal | Arduino Pin | MCU Pin |
 |---|---|---|
@@ -96,8 +98,25 @@ Four DIP switch bits select the lower nibble of the J1939 node ID at power-on. T
 
 | LED | Arduino Pin | Meaning |
 |---|---|---|
-| Red (RX LED) | `LED_BUILTIN_RX` | Error / fault indicator |
-| Green (TX LED) | `LED_BUILTIN_TX` | Heartbeat / normal operation |
+| Red (RX LED) | `LED_BUILTIN_RX` | Error / fault severity indication (pattern-based: flash counts, blink, solid) |
+| Green (TX LED) | `LED_BUILTIN_TX` | Node state indication (pattern-based: RUN / STOP / SLEEP / SETUP / CLI) |
+
+The firmware drives both LEDs with defined patterns rather than fixed on/off states:
+
+| LED | State / Condition | Pattern |
+|---|---|---|
+| **Green** | CLI client connected | 2.5 Hz blink |
+| **Green** | RUN | Solid ON |
+| **Green** | SLEEP | Single flash |
+| **Green** | SETUP | Inverted flicker (10 Hz) |
+| **Green** | STOP | Off |
+| **Red** | No fault | Off |
+| **Red** | Severity 1 | Single flash |
+| **Red** | Severity 2 | Double flash |
+| **Red** | Severity 3 | Triple flash |
+| **Red** | Severity 4 (critical) | Solid ON |
+| **Red** | Severity 5 (warning) | 2.5 Hz blink |
+| **Red** | Severity > 5 | 10 Hz flicker |
 
 ---
 
@@ -116,7 +135,7 @@ The firmware is written in C++ for the Arduino / PlatformIO ecosystem and target
      ┌──────▼──┐  ┌────▼────┐  ┌──▼───────┐  ┌──▼────────┐
      │  PT100  │  │  Flow   │  │ J1939Mgr │  │  Serial   │
      │ sensor  │  │ sensor  │  │  (CAN)   │  │  CLI/Log  │
-     └──────┬──┘  └────┬────┘  └──────────┘  └──────────-┘
+     └──────┬──┘  └────┬────┘  └──────────┘  └──────────┘
             │          │
      ┌──────▼──────────▼──────┐
      │  power.cpp / energy.cpp│  (calculations + EEPROM persistence)
@@ -157,11 +176,11 @@ All CAN messages use **little-endian (LSB-first)** byte order for multi-byte fie
 
 | PGN | Period | Payload |
 |---|---|---|
-| `0xFF10` Heartbeat | 1 s | Uptime counter, firmware version, variant |
-| `0xFF11` Raw Temperature | 1 s | Supply & return raw temperatures (×10, °C) |
-| `0xFF12` Filtered Temp + Flow | 1 s | Filtered temperatures + flow rate (L/h) |
-| `0xFF13` Power & Energy | 1 s | Power (W) + cumulative energy (Wh) + 24 h energy |
-| `0xFECA` DM1 | on change | Active diagnostic trouble codes (SPN + FMI) |
+| `0xFF10` Heartbeat | 1 s | MODEL (byte 0), firmware version (byte 1), variant & node state (byte 2: high nibble = variant, low nibble = node state), reserved (byte 3), uptime counter (bytes 4–7, little-endian) |
+| `0xFF11` Raw Temperature | 1 s | Supply & return raw temperatures (×100, 0.01 °C/LSB, little-endian) |
+| `0xFF12` Filtered Temp + Flow | 1 s | Filtered temperatures (×100, 0.01 °C/LSB, little-endian) + flow rate (L/h) |
+| `0xFF13` Power & Energy | 1 s | 24 h energy (bytes 0–1, 0.01 kWh/LSB) + energy total (bytes 2–4, 24-bit, 1 kWh/LSB) + power (bytes 5–6, 0.1 kW/LSB) + reserved (byte 7) |
+| `0xFECA` DM1 | configured interval (while DTCs active; one final frame on clear) | Active diagnostic trouble codes (SPN + FMI) |
 
 ### 3.5 Build & Flash
 
@@ -179,7 +198,7 @@ pio run --target upload
 pio device monitor --baud 115200
 ```
 
-The custom board definition (`boards/TFM_100/`) sets `8 MHz`, `5V`, and the correct fuse bytes.
+The custom board definition (`firmware/boards/TFM_100.json`, with variants in `firmware/boards/variants/TFM_100/`) sets `8 MHz`, `5V`, and the correct fuse bytes.
 
 ---
 
@@ -195,9 +214,9 @@ The **TFM-100 Web UI** is a single-page application built with **Vue 3** and **V
 |---|---|
 | **Live telemetry** | Real-time display of all `P;key;value` parameters (temperatures, flow, power, energy) |
 | **Diagnostics panel** | Shows active DTCs with SPN-FMI codes and human-readable descriptions |
-| **Log viewer** | Scrolling log with level filter (Error / Warning / Info / Debug) |
-| **Serial console** | Manual command entry for `C`, `R`, `W`, `B`, `E` commands |
-| **Auto-connect** | Remembers the last serial port and reconnects automatically |
+| **Log viewer** | Scrolling log output of device messages |
+| **Serial connection** | Quick connect/disconnect to a selected serial port via the WebSerial API |
+| **Browser-only UI** | Runs entirely in the browser; no drivers or backend services required |
 
 ### 4.2 Running the Web UI
 
@@ -232,7 +251,7 @@ webui/src/
 
 ### 5.1 J1939 CAN Bus
 
-TFM-100 uses the **SAE J1939** protocol over a 1 Mbit/s CAN 2.0B network with 29-bit extended identifiers.
+TFM-100 uses the **SAE J1939** protocol over a 250 kbit/s CAN 2.0B network with 29-bit extended identifiers.
 
 The `J1939Manager` library provides:
 
@@ -251,7 +270,7 @@ A line-oriented ASCII protocol is used for configuration, diagnostics, and log s
 |---|---|---|
 | Erase diagnostics | `E\r\n` | Clears the DTC ring buffer in EEPROM |
 | Set calibration | `C;<id>;<value>\r\n` | Write a calibration coefficient |
-| Read memory | `R;<chip>;<addr_hex>;<len_hex>\r\n` | Dump raw memory |
+| Read memory | `R;<chip>;<addr_hex>;<len_dec>\r\n` | Dump raw memory (`len` is a decimal byte count) |
 | Write memory | `W;<chip>;<addr_hex>;<data_hex>\r\n` | Write raw bytes |
 | Reboot | `B\r\n` | Software reset |
 
@@ -263,7 +282,7 @@ A line-oriented ASCII protocol is used for configuration, diagnostics, and log s
 | Log | `L;<level>;<message>\r\n` | Level: `E`/`W`/`I`/`D` |
 | DTC count | `D;<count>\r\n` | Number of stored DTCs |
 | DTC entry | `D;<idx>;<desc>;<SPN>-<FMI>;<status>;<oc>\r\n` | Individual trouble code |
-| Memory dump | `V;<chip>;<addr>;<len>;<hex_data>\r\n` | Response to `R` command |
+| Memory dump | `V;<chip>;<addr_hex>;<len_hex>;<hex_data>\r\n` | Response to `R` command (`len_hex` is exactly 2 hex digits; `addr_hex` is up to 8 hex digits) |
 | Calibration | `C;<id>;<type>;<value>\r\n` | Current calibration value |
 
 A full protocol specification is available in [PROTOCOL.md](PROTOCOL.md).
@@ -286,7 +305,8 @@ TFM-100/
 │   │   ├── flow/                # Flow sensor driver
 │   │   ├── scheduler/           # Cooperative task scheduler
 │   │   └── diagnostics/         # DTC management
-│   ├── boards/TFM_100/          # Custom PlatformIO board definition
+│   ├── boards/TFM_100.json      # Custom PlatformIO board definition
+│   ├── boards/variants/TFM_100/ # Board-specific pin/variant files
 │   └── platformio.ini           # Build configuration
 ├── webui/                       # Browser-based monitoring UI (Vue 3)
 │   ├── src/
