@@ -110,6 +110,8 @@ void Flow::process()
         noInterrupts();
         step = CAPTURE_START;
         interrupts();
+        // Advance the timeout reference so this reset happens once per idle period.
+        last_millis = millis();
     }
 }
 
