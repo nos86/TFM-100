@@ -1,7 +1,9 @@
 #include <flow.h>
 #include "config.h"
 
-typedef enum
+// Fixed uint8_t underlying type ensures single-byte read/write on AVR,
+// making ISR ↔ main-loop accesses atomic without extra interrupt guards.
+typedef enum : uint8_t
 {
     CAPTURE_START = 1,
     CAPTURE_INTERMEDIATE = 2,
