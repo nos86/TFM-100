@@ -50,6 +50,11 @@
 #define POWER_EEPROM_SIZE   6   // 2 bytes magic + 4 bytes max_power
 #define ENERGY_EEPROM_SIZE 10   // 2 bytes magic + 4 bytes energy_total + 4 bytes energy_24h
 
+// Thermal deadband threshold (°C).
+// Both getThermalPower and energyFromVolume_kWh use this one-sided lower-bound guard:
+// delta_T below this value is treated as zero (idle circuit or sensor offset).
+#define DT_DEADBAND 0.05f
+
 #define ENERGY_EEPROM_SAVE_INTERVAL_MS 60000UL // Persist energy to EEPROM at most once per minute
 
 // Compile-time checks to ensure EEPROM regions do not overlap.

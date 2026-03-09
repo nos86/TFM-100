@@ -4,8 +4,6 @@
 float Power::updatePower(float supply_temp, float return_temp, float flow_lph)
 {
     power = getThermalPower(supply_temp, return_temp, flow_lph);
-    if (power < 0.0f)
-        return 0.0f;
 
     if (power > max_power)
     {

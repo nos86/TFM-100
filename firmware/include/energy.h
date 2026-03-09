@@ -27,7 +27,8 @@
  * @param supply_temp_degC Supply temperature in °C
  * @param return_temp_degC Return temperature in °C
  * @param flow_lph Volumetric flow in litres per hour (L/h)
- * @return Thermal power in kilowatts (kW). Signed: positive means heat delivered when supply > return.
+ * @return Thermal power in kilowatts (kW). Returns 0.0 when delta_T < DT_DEADBAND
+ *         (idle circuit or sensor offset); always non-negative.
  *
  * Units:
  * - cp: kJ/(kg·K)
@@ -40,12 +41,11 @@ inline float getThermalPower(float supply_temp, float return_temp, float flow_lp
 
     float delta_t = supply_temp - return_temp;
 
-    // optional deadband to avoid noise integration
-    const float DT_DEADBAND = 0.05f; // °C
-    if (fabs(delta_t) < DT_DEADBAND)
+    // One-sided lower-bound guard: treat delta_T below threshold as zero.
+    // Prevents noise or idle-circuit sensor offsets from producing spurious power readings.
+    if (delta_t < DT_DEADBAND)
         delta_t = 0.0f;
 
-    // return signed power (positive when supply > return)
     return (flow_lph * density * cp * delta_t) / seconds_per_hour;
 }
 
@@ -54,11 +54,18 @@ inline float getThermalPower(float supply_temp, float return_temp, float flow_lp
  * @param supply_temp_degC Supply temperature in °C
  * @param return_temp_degC Return temperature in °C
  * @param volume_liters Volume passed since last sample in liters
- * @return energy increment in kWh
+ * @return energy increment in kWh, or 0 if supply_temp ≤ return_temp + deadband
  */
 inline float energyFromVolume_kWh(float supply_temp_degC, float return_temp_degC, float volume_liters)
 {
     float delta_t = supply_temp_degC - return_temp_degC;
+
+    // One-sided lower-bound guard: only accumulate energy when supply exceeds
+    // return by at least DT_DEADBAND. Prevents idle-circuit sensor offsets from
+    // producing negative increments that would reduce the stored total.
+    if (delta_t < DT_DEADBAND)
+        return 0.0f;
+
     float energy_kJ = volume_liters * density * cp * delta_t; // kJ
     float energy_kWh = energy_kJ / 3600.0f;                   // kWh (since 1 kWh = 3600 kJ)
     return energy_kWh;
