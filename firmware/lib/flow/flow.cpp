@@ -6,47 +6,46 @@ typedef enum
     CAPTURE_START = 1,
     CAPTURE_INTERMEDIATE = 2,
     CAPTURE_COMPLETE = 3,
-    CAPTURE_OVERRUN = 4,
 } capture_step_t;
 
-volatile uint16_t t1 = 0;
-volatile uint16_t t2 = 0;
-volatile uint16_t last_tick = 0;
+volatile uint32_t t1_ms = 0;
+volatile uint32_t t2_ms = 0;
+volatile uint32_t last_pulse_ms = 0;
 volatile capture_step_t step = CAPTURE_START;
 
 void flow_ISR()
 {
-    // Handle the state transitions for the capture process based on the current step.
-    uint16_t tick = TCNT1;
-    uint16_t delta_tick;
-    
-    if (tick >= last_tick)
-        delta_tick = tick - last_tick;
-    else
-        delta_tick = (UINT16_MAX + 1 - last_tick) + tick; // Handle overflow
-    if (delta_tick < (uint16_t)DEBOUNCE_TICK)
-        return; // Debounce
-    last_tick = tick;
+    uint32_t now_ms = millis();
+
+    // Debounce: reject pulses that arrive faster than DEBOUNCE_TIME_MS.
+    // This filters EMI glitches and mechanical contact bounce.
+    if ((now_ms - last_pulse_ms) < DEBOUNCE_TIME_MS)
+        return;
+    last_pulse_ms = now_ms;
+
     switch (step)
     {
     case CAPTURE_START:
-        t1 = tick; // Primo fronte
+        t1_ms = now_ms;
         step = CAPTURE_INTERMEDIATE;
         break;
     case CAPTURE_INTERMEDIATE:
-        t2 = tick; // Secondo fronte
+        t2_ms = now_ms;
         step = CAPTURE_COMPLETE;
         break;
-    default:
-        step = CAPTURE_OVERRUN;
+    case CAPTURE_COMPLETE:
+        // process() has not yet consumed the previous pair.
+        // Slide the window forward so we always hold the most-recent interval
+        // and the state machine never gets stuck waiting for process().
+        t1_ms = t2_ms;
+        t2_ms = now_ms;
+        // step stays CAPTURE_COMPLETE – fresh data is ready for process()
         break;
     }
 }
 
 void Flow::begin()
 {
-    TCCR1A = 0;
-    TCCR1B = (1 << CS12) | (1 << CS10); // Prescaler 1024
     pinMode(FLOW_SENSOR_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN), flow_ISR, FALLING);
 }
@@ -60,39 +59,61 @@ void Flow::begin(void (*callback)(float))
 
 uint16_t Flow::calculateFlow(float period)
 {
-    return (uint16_t)(3600 * (1.0f / tickPerLiter) / period);
+    return (uint16_t)(3600.0f * (1.0f / tickPerLiter) / period);
 }
 
 void Flow::process()
 {
     if (step == CAPTURE_COMPLETE)
     {
-        uint16_t ticks;
-        if (t2 >= t1)
-        {
-            ticks = t2 - t1; // Nessun overflow
-        }
-        else
-        {
-            ticks = (UINT16_MAX + 1 - t1) + t2; // Correzione overflow
-        }
-        t1 = t2; // Set end-time as start-time
+        // Atomically snapshot the ISR timestamps and clear the ready flag.
+        noInterrupts();
+        uint32_t ts1 = t1_ms;
+        uint32_t ts2 = t2_ms;
         step = CAPTURE_INTERMEDIATE;
-        last_period_s = ((float)ticks * TICK_BASE_TIME);
-        last_measured_flow_l_h = calculateFlow(last_period_s);
-        last_millis = millis();
-        if (callback != NULL)
-            callback(last_measured_flow_l_h);
+        interrupts();
+
+        // millis() subtraction is correct even when the 32-bit counter wraps.
+        uint32_t period_ms = ts2 - ts1;
+        float period_s = (float)period_ms / 1000.0f;
+
+        if (period_s > 0.0f)
+        {
+            uint16_t raw_flow = calculateFlow(period_s);
+
+            // Time-varying EMA low-pass filter.
+            // alpha = dt / (TC + dt) is the bilinear-equivalent of a
+            // continuous RC filter with time-constant FLOW_LPF_TC_S.
+            // For rapid pulses (short dt, high flow / potential noise) alpha
+            // is small → the old filtered value dominates → stronger noise
+            // rejection.  For slow pulses (long dt, low flow) alpha approaches
+            // 1 → the filter tracks changes quickly.  This is the expected
+            // RC-filter behaviour at variable sample rates.
+            float alpha = period_s / (FLOW_LPF_TC_S + period_s);
+            filtered_flow_l_h = alpha * (float)raw_flow + (1.0f - alpha) * filtered_flow_l_h;
+
+            last_period_s = period_s;
+            last_measured_flow_l_h = (uint16_t)filtered_flow_l_h;
+            last_millis = millis();
+            if (callback != NULL)
+                callback(last_measured_flow_l_h);
+        }
     }
-    else if ((millis() - last_millis) > (1000 * timeout_s))
+    else if ((millis() - last_millis) > TIMEOUT_MS)
     {
         last_measured_flow_l_h = 0;
+        filtered_flow_l_h = 0.0f;
+        // Reset to CAPTURE_START so the next restart requires two pulses to
+        // confirm real flow before a rate is reported (first-pulse confirmation).
+        noInterrupts();
+        step = CAPTURE_START;
+        interrupts();
     }
 }
 
 uint16_t Flow::getFlow()
 { // in l/h
-    float diff_s = (millis() - last_millis) / 1000.0;
+    float diff_s = (millis() - last_millis) / 1000.0f;
     if ((last_period_s < diff_s) && (diff_s < timeout_s))
     {
         return calculateFlow((float)diff_s);
