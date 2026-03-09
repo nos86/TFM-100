@@ -27,7 +27,8 @@
  * @param supply_temp_degC Supply temperature in °C
  * @param return_temp_degC Return temperature in °C
  * @param flow_lph Volumetric flow in litres per hour (L/h)
- * @return Thermal power in kilowatts (kW). Signed: positive means heat delivered when supply > return.
+ * @return Thermal power in kilowatts (kW). Returns 0.0 when delta_T < DT_DEADBAND
+ *         (idle circuit or sensor offset); always non-negative.
  *
  * Units:
  * - cp: kJ/(kg·K)
@@ -40,12 +41,11 @@ inline float getThermalPower(float supply_temp, float return_temp, float flow_lp
 
     float delta_t = supply_temp - return_temp;
 
-    // optional deadband to avoid noise integration
-    const float DT_DEADBAND = 0.05f; // °C
-    if (fabs(delta_t) < DT_DEADBAND)
+    // One-sided lower-bound guard: treat delta_T below threshold as zero.
+    // Prevents noise or idle-circuit sensor offsets from producing spurious power readings.
+    if (delta_t < DT_DEADBAND)
         delta_t = 0.0f;
 
-    // return signed power (positive when supply > return)
     return (flow_lph * density * cp * delta_t) / seconds_per_hour;
 }
 
@@ -60,11 +60,9 @@ inline float energyFromVolume_kWh(float supply_temp_degC, float return_temp_degC
 {
     float delta_t = supply_temp_degC - return_temp_degC;
 
-    // Do not accumulate energy when return temperature is at or above supply temperature.
-    // A negative (or near-zero) delta_T indicates a temperature anomaly or idle circuit
-    // with sensor offset; counting it would reduce the stored total energy incorrectly.
-    const float DT_DEADBAND = 0.05f; // °C — one-sided lower-bound guard: only accumulate when supply exceeds return by at least this amount.
-                                     // Note: getThermalPower uses a symmetric fabs-based deadband; this is intentionally asymmetric.
+    // One-sided lower-bound guard: only accumulate energy when supply exceeds
+    // return by at least DT_DEADBAND. Prevents idle-circuit sensor offsets from
+    // producing negative increments that would reduce the stored total.
     if (delta_t < DT_DEADBAND)
         return 0.0f;
 
