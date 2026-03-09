@@ -63,7 +63,8 @@ inline float energyFromVolume_kWh(float supply_temp_degC, float return_temp_degC
     // Do not accumulate energy when return temperature is at or above supply temperature.
     // A negative (or near-zero) delta_T indicates a temperature anomaly or idle circuit
     // with sensor offset; counting it would reduce the stored total energy incorrectly.
-    const float DT_DEADBAND = 0.05f; // °C — matches getThermalPower deadband
+    const float DT_DEADBAND = 0.05f; // °C — one-sided lower-bound guard: only accumulate when supply exceeds return by at least this amount.
+                                     // Note: getThermalPower uses a symmetric fabs-based deadband; this is intentionally asymmetric.
     if (delta_t < DT_DEADBAND)
         return 0.0f;
 
