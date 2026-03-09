@@ -54,11 +54,19 @@ inline float getThermalPower(float supply_temp, float return_temp, float flow_lp
  * @param supply_temp_degC Supply temperature in °C
  * @param return_temp_degC Return temperature in °C
  * @param volume_liters Volume passed since last sample in liters
- * @return energy increment in kWh
+ * @return energy increment in kWh, or 0 if supply_temp ≤ return_temp + deadband
  */
 inline float energyFromVolume_kWh(float supply_temp_degC, float return_temp_degC, float volume_liters)
 {
     float delta_t = supply_temp_degC - return_temp_degC;
+
+    // Do not accumulate energy when return temperature is at or above supply temperature.
+    // A negative (or near-zero) delta_T indicates a temperature anomaly or idle circuit
+    // with sensor offset; counting it would reduce the stored total energy incorrectly.
+    const float DT_DEADBAND = 0.05f; // °C — matches getThermalPower deadband
+    if (delta_t < DT_DEADBAND)
+        return 0.0f;
+
     float energy_kJ = volume_liters * density * cp * delta_t; // kJ
     float energy_kWh = energy_kJ / 3600.0f;                   // kWh (since 1 kWh = 3600 kJ)
     return energy_kWh;

@@ -47,7 +47,8 @@ void Energy::increase_energy(float supply_temp, float return_temp, float volume_
     // Compute energy increment in kWh using simple formula
     float dE = energyFromVolume_kWh(supply_temp, return_temp, volume_liters);
 
-    // Update totals. Signed dE allows positive (heating) and negative (cooling)
+    // Update totals. energyFromVolume_kWh returns 0 when delta_T < deadband,
+    // so dE is always non-negative (heating meters do not count reverse heat flow).
     energy_total += dE;
     energy_24h += dE;
 
