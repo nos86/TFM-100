@@ -70,6 +70,8 @@ void Flow::process()
         noInterrupts();
         uint32_t ts1 = t1_ms;
         uint32_t ts2 = t2_ms;
+        // Advance the ISR window start so the next interval begins at the last pulse.
+        t1_ms = ts2;
         step = CAPTURE_INTERMEDIATE;
         interrupts();
 
