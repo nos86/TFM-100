@@ -98,7 +98,7 @@ void Flow::process()
 
             last_period_s = period_s;
             last_measured_flow_l_h = (uint16_t)filtered_flow_l_h;
-            last_millis = millis();
+            last_millis = ts2; // anchor to actual pulse time for accurate dead-reckoning
             if (callback != NULL)
                 callback(last_measured_flow_l_h);
         }
@@ -107,6 +107,7 @@ void Flow::process()
     {
         last_measured_flow_l_h = 0;
         filtered_flow_l_h = 0.0f;
+        last_period_s = 0.0f; // clear stale period so getFlow() won't generate false spikes
         // Reset to CAPTURE_START so the next restart requires two pulses to
         // confirm real flow before a rate is reported (first-pulse confirmation).
         noInterrupts();
@@ -120,7 +121,7 @@ void Flow::process()
 uint16_t Flow::getFlow()
 { // in l/h
     float diff_s = (millis() - last_millis) / 1000.0f;
-    if ((last_period_s < diff_s) && (diff_s < timeout_s))
+    if ((last_period_s > 0.0f) && (last_period_s < diff_s) && (diff_s < timeout_s))
     {
         return calculateFlow((float)diff_s);
     }
