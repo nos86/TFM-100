@@ -61,10 +61,10 @@ This document describes the simple, line-oriented serial protocol implemented by
 
 - `Z;target`
   - Reset energy counters.
-  - `target` is a decimal selector:
+  - `target` is a decimal bit-mask:
     - `1` = reset 24h energy counter only
     - `2` = reset total energy counter only
-    - `255` = reset both 24h and total counters
+    - `3` = reset both 24h and total counters
   - Handler: triggers the reset energy callback (set via `set_reset_energy_callback`).
   - Answer: device will respond with:
     - `Z;OK\r\n` on success

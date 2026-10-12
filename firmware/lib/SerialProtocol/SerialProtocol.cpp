@@ -211,26 +211,53 @@ void SerialProtocol::process_line(const char *line, size_t len)
     if (cmd == 'Z')
     {
         // Z;target
-        // target: 0x01=24h, 0x02=total, 0xFF=both
+        // target bit-mask: 0x01=24h, 0x02=total, 0x03=both
         const char *s1;
         size_t l1;
         next_token(s1, l1);
-        if (s1 && l1 > 0)
+        if (!(s1 && l1 > 0))
         {
-            uint8_t target = parse_dec_u8(s1, l1);
-            if (target != 0x01 && target != 0x02 && target != 0xFF)
+            send_response('Z', false, 0x01);
+            return;
+        }
+
+        // Reject malformed parameters and extra tokens to preserve protocol contract.
+        if (q < end)
+        {
+            send_response('Z', false, 0x01);
+            return;
+        }
+        uint16_t parsed = 0;
+        for (size_t i = 0; i < l1; i++)
+        {
+            char c = s1[i];
+            if (c < '0' || c > '9')
             {
-                send_response('Z', false, 0xFF);
+                send_response('Z', false, 0x01);
                 return;
             }
-            if (cb_reset_energy)
+            parsed = (uint16_t)(parsed * 10 + (uint16_t)(c - '0'));
+            if (parsed > 255)
             {
-                cb_reset_energy(target);
-                send_response('Z', true);
+                send_response('Z', false, 0x01);
+                return;
             }
-            else
-                send_response('Z', false, 0xFF);
         }
+
+        uint8_t target = (uint8_t)parsed;
+        if (target == 0 || target > 0x03)
+        {
+            send_response('Z', false, 0x02);
+            return;
+        }
+
+        if (cb_reset_energy)
+        {
+            cb_reset_energy(target);
+            send_response('Z', true);
+        }
+        else
+            send_response('Z', false, 0xFF);
         return;
     }
 
