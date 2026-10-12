@@ -41,6 +41,7 @@ public:
     typedef void (*read_callback_t)(uint8_t chip, uint32_t addr, uint8_t len);
     typedef void (*write_callback_t)(uint8_t chip, uint32_t addr, const uint8_t *data, uint8_t dlen);
     typedef void (*reboot_callback_t)(void);
+    typedef void (*reset_energy_callback_t)(uint8_t target);
     typedef void (*erase_diagnostics_callback_t)(void);
 
     // Constructor
@@ -77,6 +78,7 @@ public:
     void set_read_callback(read_callback_t cb) { cb_read = cb; }
     void set_write_callback(write_callback_t cb) { cb_write = cb; }
     void set_reboot_callback(reboot_callback_t cb) { cb_reboot = cb; }
+    void set_reset_energy_callback(reset_energy_callback_t cb) { cb_reset_energy = cb; }
     void set_erase_diagnostics_callback(erase_diagnostics_callback_t cb) { cb_erase_diagnostics = cb; }
 
     // Instance writer setter (public) - optional per-instance writer overrides weak hook
@@ -109,6 +111,7 @@ private:
     read_callback_t cb_read;
     write_callback_t cb_write;
     reboot_callback_t cb_reboot;
+    reset_energy_callback_t cb_reset_energy;
     erase_diagnostics_callback_t cb_erase_diagnostics;
 
     // Internal helpers

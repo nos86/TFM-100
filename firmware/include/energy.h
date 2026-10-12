@@ -132,6 +132,13 @@ public:
         saveToEEPROM();
     }
 
+    /** @brief Reset only the total energy counter and persist */
+    void resetTotal()
+    {
+        energy_total = 0.0f;
+        saveToEEPROM();
+    }
+
 private:
     const uint16_t magic = 0x1943; // Magic number to validate EEPROM data
 

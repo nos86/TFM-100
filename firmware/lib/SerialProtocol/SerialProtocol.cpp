@@ -13,7 +13,7 @@
 #endif
 
 SerialProtocol::SerialProtocol()
-    : rx_index(0), cb_calibration(NULL), cb_read(NULL), cb_write(NULL), cb_reboot(NULL), cb_erase_diagnostics(NULL), writer(NULL)
+    : rx_index(0), cb_calibration(NULL), cb_read(NULL), cb_write(NULL), cb_reboot(NULL), cb_reset_energy(NULL), cb_erase_diagnostics(NULL), writer(NULL)
 {
 }
 
@@ -205,6 +205,32 @@ void SerialProtocol::process_line(const char *line, size_t len)
     {
         if (cb_reboot)
             cb_reboot();
+        return;
+    }
+
+    if (cmd == 'Z')
+    {
+        // Z;target
+        // target: 0x01=24h, 0x02=total, 0xFF=both
+        const char *s1;
+        size_t l1;
+        next_token(s1, l1);
+        if (s1 && l1 > 0)
+        {
+            uint8_t target = parse_dec_u8(s1, l1);
+            if (target != 0x01 && target != 0x02 && target != 0xFF)
+            {
+                send_response('Z', false, 0xFF);
+                return;
+            }
+            if (cb_reset_energy)
+            {
+                cb_reset_energy(target);
+                send_response('Z', true);
+            }
+            else
+                send_response('Z', false, 0xFF);
+        }
         return;
     }
 

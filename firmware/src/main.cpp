@@ -176,6 +176,12 @@ void processReceivedCanMessages()
           energyObj.reset24h();
           diagComm.send_info("Energy 24h reset");
         }
+        // 0x02: Reset total energy counter only
+        else if (command == 0x02)
+        {
+          energyObj.resetTotal();
+          diagComm.send_info("Energy total reset");
+        }
         // 0xFF: Reset both 24h and total energy counters
         else if (command == 0xFF)
         {

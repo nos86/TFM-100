@@ -85,6 +85,12 @@ void DiagComm::onDiagnosticsEntryChange(uint8_t index, const dtc_history_t *entr
         s_instance->onDiagnosticsEntryChangeInstance(index, entry);
 }
 
+void DiagComm::onResetEnergyCallback(uint8_t target)
+{
+    if (s_instance)
+        s_instance->onResetEnergyCallbackInstance(target);
+}
+
 void DiagComm::onEraseDiagnosticsCallback(void)
 {
     // Static trampoline: forward to instance if available
@@ -92,6 +98,28 @@ void DiagComm::onEraseDiagnosticsCallback(void)
     {
         // Erase the diagnostics memory
         DSM.clear();
+    }
+}
+
+void DiagComm::onResetEnergyCallbackInstance(uint8_t target)
+{
+    switch (target)
+    {
+    case 0x01:
+        energyObj.reset24h();
+        comm.send_log(SerialProtocol::LOG_INFO, "Energy 24h reset via serial");
+        break;
+    case 0x02:
+        energyObj.resetTotal();
+        comm.send_log(SerialProtocol::LOG_INFO, "Energy total reset via serial");
+        break;
+    case 0xFF:
+        energyObj.resetAll();
+        comm.send_log(SerialProtocol::LOG_INFO, "Energy 24h and total reset via serial");
+        break;
+    default:
+        comm.send_log(SerialProtocol::LOG_WARNING, "Ignored invalid energy reset target");
+        break;
     }
 }
 
