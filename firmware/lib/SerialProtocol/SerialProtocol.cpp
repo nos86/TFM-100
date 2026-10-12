@@ -13,7 +13,7 @@
 #endif
 
 SerialProtocol::SerialProtocol()
-    : rx_index(0), cb_calibration(NULL), cb_read(NULL), cb_write(NULL), cb_reboot(NULL), cb_erase_diagnostics(NULL), writer(NULL)
+    : rx_index(0), cb_calibration(NULL), cb_read(NULL), cb_write(NULL), cb_reboot(NULL), cb_reset_energy(NULL), cb_erase_diagnostics(NULL), writer(NULL)
 {
 }
 
@@ -205,6 +205,59 @@ void SerialProtocol::process_line(const char *line, size_t len)
     {
         if (cb_reboot)
             cb_reboot();
+        return;
+    }
+
+    if (cmd == 'Z')
+    {
+        // Z;target
+        // target bit-mask: 0x01=24h, 0x02=total, 0x03=both
+        const char *s1;
+        size_t l1;
+        next_token(s1, l1);
+        if (!(s1 && l1 > 0))
+        {
+            send_response('Z', false, 0x01);
+            return;
+        }
+
+        // Reject malformed parameters and extra tokens to preserve protocol contract.
+        if (q < end)
+        {
+            send_response('Z', false, 0x01);
+            return;
+        }
+        uint16_t parsed = 0;
+        for (size_t i = 0; i < l1; i++)
+        {
+            char c = s1[i];
+            if (c < '0' || c > '9')
+            {
+                send_response('Z', false, 0x01);
+                return;
+            }
+            parsed = (uint16_t)(parsed * 10 + (uint16_t)(c - '0'));
+            if (parsed > 255)
+            {
+                send_response('Z', false, 0x01);
+                return;
+            }
+        }
+
+        uint8_t target = (uint8_t)parsed;
+        if (target == 0 || target > 0x03)
+        {
+            send_response('Z', false, 0x02);
+            return;
+        }
+
+        if (cb_reset_energy)
+        {
+            cb_reset_energy(target);
+            send_response('Z', true);
+        }
+        else
+            send_response('Z', false, 0xFF);
         return;
     }
 

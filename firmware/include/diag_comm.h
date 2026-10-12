@@ -31,17 +31,20 @@ public:
     {
         Serial.begin(baudrate);
         comm.begin(); // Use default Serial writer
+        comm.set_reset_energy_callback(onResetEnergyCallback);
         comm.set_erase_diagnostics_callback(onEraseDiagnosticsCallback);
         DSM.setOnCountChangedCallback(onDiagnosticsSizeChange);
         DSM.setOnEntryChangedCallback(onDiagnosticsEntryChange);
     }
     static void onDiagnosticsSizeChange(uint8_t newSize);
     static void onDiagnosticsEntryChange(uint8_t index, const dtc_history_t *entry);
+    static void onResetEnergyCallback(uint8_t target);
     static void onEraseDiagnosticsCallback(void);
 
     // Instance handlers invoked by the static trampoline callbacks
     void onDiagnosticsSizeChangeInstance(uint8_t newSize);
     void onDiagnosticsEntryChangeInstance(uint8_t index, const dtc_history_t *entry);
+    void onResetEnergyCallbackInstance(uint8_t target);
 
     void send_log(SerialProtocol::LogLevel level, const char *message)
     {

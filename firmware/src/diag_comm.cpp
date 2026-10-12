@@ -85,6 +85,12 @@ void DiagComm::onDiagnosticsEntryChange(uint8_t index, const dtc_history_t *entr
         s_instance->onDiagnosticsEntryChangeInstance(index, entry);
 }
 
+void DiagComm::onResetEnergyCallback(uint8_t target)
+{
+    if (s_instance)
+        s_instance->onResetEnergyCallbackInstance(target);
+}
+
 void DiagComm::onEraseDiagnosticsCallback(void)
 {
     // Static trampoline: forward to instance if available
@@ -93,6 +99,11 @@ void DiagComm::onEraseDiagnosticsCallback(void)
         // Erase the diagnostics memory
         DSM.clear();
     }
+}
+
+void DiagComm::onResetEnergyCallbackInstance(uint8_t target)
+{
+    energyObj.resetByTarget(target);
 }
 
 void DiagComm::onDiagnosticsSizeChangeInstance(uint8_t newSize)

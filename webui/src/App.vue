@@ -93,9 +93,11 @@ const nodeStatusDescription = computed(() => {
 
 
 function onReset24h() {
+  serial.write('Z;1')
   energy24hKWh.value = 0
 }
 function onResetTotal() {
+  serial.write('Z;2')
   energyTotalKWh.value = 0
 }
 

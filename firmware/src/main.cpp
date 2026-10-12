@@ -139,8 +139,9 @@ void update_errors();
  * - Payload (1-based byte numbering):
  *   - Byte 1: Target node address (0xFF = all nodes, or specific node ID)
  *   - Byte 2: Reset command type
- *     - 0x01: Reset 24h energy counter only
- *     - 0xFF: Reset both 24h and total energy counters
+ *     - 0x01: Reset 24h energy counter
+ *     - 0x02: Reset total energy counter
+ *     - 0x03: Reset both counters
  *   - Bytes 3-8: Reserved
  */
 void processReceivedCanMessages()
@@ -170,18 +171,7 @@ void processReceivedCanMessages()
       // Check if message is for this node (0xFF = broadcast to all nodes)
       if (target_node == 0xFF || target_node == node_id)
       {
-        // 0x01: Reset 24h energy counter only
-        if (command == 0x01)
-        {
-          energyObj.reset24h();
-          diagComm.send_info("Energy 24h reset");
-        }
-        // 0xFF: Reset both 24h and total energy counters
-        else if (command == 0xFF)
-        {
-          energyObj.resetAll();
-          diagComm.send_info("Energy 24h and total reset");
-        }
+        energyObj.resetByTarget(command);
       }
     }
   }

@@ -74,6 +74,9 @@ inline float energyFromVolume_kWh(float supply_temp_degC, float return_temp_degC
 class Energy
 {
 public:
+    static const uint8_t RESET_24H_MASK = 0x01;
+    static const uint8_t RESET_TOTAL_MASK = 0x02;
+
     Energy()
     {
         // Attempt to load persisted state from EEPROM
@@ -120,16 +123,38 @@ public:
      */
     void resetAll()
     {
-        energy_24h = 0.0f;
-        energy_total = 0.0f;
-        saveToEEPROM();
+        resetByTarget(RESET_24H_MASK | RESET_TOTAL_MASK);
     }
 
     /** @brief Reset only the 24h energy counter and persist */
     void reset24h()
     {
-        energy_24h = 0.0f;
+        resetByTarget(RESET_24H_MASK);
+    }
+
+    /** @brief Reset only the total energy counter and persist */
+    void resetTotal()
+    {
+        resetByTarget(RESET_TOTAL_MASK);
+    }
+
+    /**
+     * @brief Reset energy counters according to bit-mask target and persist
+     * @param target bit0=24h, bit1=total (valid values: 0x01, 0x02, 0x03)
+     * @return true when target is valid and at least one reset is applied
+     */
+    bool resetByTarget(uint8_t target)
+    {
+        if (target == 0 || (target & ~(RESET_24H_MASK | RESET_TOTAL_MASK)) != 0)
+            return false;
+
+        if (target & RESET_24H_MASK)
+            energy_24h = 0.0f;
+        if (target & RESET_TOTAL_MASK)
+            energy_total = 0.0f;
+
         saveToEEPROM();
+        return true;
     }
 
 private:

@@ -59,6 +59,18 @@ This document describes the simple, line-oriented serial protocol implemented by
   - Handler: triggers the reboot callback (set via `set_reboot_callback`).
   - Answer: device will respond with `B;OK\r\n` and then reboot.
 
+- `Z;target`
+  - Reset energy counters.
+  - `target` is a decimal bit-mask:
+    - `1` = reset 24h energy counter only
+    - `2` = reset total energy counter only
+    - `3` = reset both 24h and total counters
+  - Handler: triggers the reset energy callback (set via `set_reset_energy_callback`).
+  - Answer: device will respond with:
+    - `Z;OK\r\n` on success
+    - `Z;ERR;error_code\r\n` on failure
+  - Example: `Z;2\r\n` (reset total energy)
+
 ## Downlink (device -> host) messages
 
 - `P;key;value`
