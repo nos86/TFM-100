@@ -16,6 +16,7 @@ void DiagComm::process(uint32_t td)
     {
         clientConnected = true;
         // Client just connected
+        comm.send_log(SerialProtocol::LOG_INFO, "Sending complete diagnostics memory");
         comm.send_param("FW", "TFM-100");
         comm.send_param("FV", (uint32_t)FIRMWARE_VERSION);
         comm.send_param("ID", (uint32_t)node_id);
